@@ -1,4 +1,30 @@
-![EssentialsX Banner](https://images2.imgbox.com/d8/c0/58Scr2hu_o.png)
+<p align="center">
+  <img src="https://images2.imgbox.com/d8/c0/58Scr2hu_o.png" alt="EssentialsX Banner" width="100%" />
+</p>
+
+<p align="center">
+  <!-- Latest Release (Green) -->
+  <a href="https://github.com/Yanoee/EssentialsX/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Yanoee/EssentialsX?style=for-the-badge&logo=github&color=2ea44f" alt="Latest Release" />
+  </a>
+  <!-- Wiki (White) -->
+  <a href="https://github.com/Yanoee/EssentialsX/wiki">
+    <img src="https://img.shields.io/badge/Wiki-Docs-white?style=for-the-badge&logo=wikipedia&logoColor=black" alt="Wiki" />
+  </a>
+  <!-- ModDB (Blue) -->
+  <a href="https://mods.vintagestory.at/essentialsx">
+    <img src="https://img.shields.io/badge/ModDB-Download-0078D6?style=for-the-badge&logo=moddb&logoColor=white" alt="ModDB" />
+  </a>
+  <!-- Issues -->
+  <a href="https://github.com/Yanoee/EssentialsX/issues">
+    <img src="https://img.shields.io/github/issues/Yanoee/EssentialsX?style=for-the-badge&logo=github" alt="Issues" />
+  </a>
+  <!-- Version -->
+  <a href="https://github.com/Yanoee/EssentialsX/releases">
+    <img src="https://img.shields.io/github/v/tag/Yanoee/EssentialsX?label=Version&style=for-the-badge&color=blueviolet" alt="Version" />
+  </a>
+</p>
+
 # EssentialsX for Vintage Story
 EssentialsX is a modular **server utility pack** made for Vintage Story.<br>It boosts the server experience by addressing the absence of built-in server-side plugins.<br>
 With features like homes, rules, TPA, TPR, Rcon integration, and webAPI support, everything is easily adjustable through straightforward `.json` files.<br>
