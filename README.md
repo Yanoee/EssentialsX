@@ -1,5 +1,4 @@
-﻿﻿# EssentialsX for Vintage Story
-
+# EssentialsX for Vintage Story
 EssentialsX is a modular **server utility pack** made for Vintage Story.<br>It boosts the server experience by addressing the absence of built-in server-side plugins.<br>
 With features like homes, rules, TPA, TPR, Rcon integration, and webAPI support, everything is easily adjustable through straightforward `.json` files.<br>
 
