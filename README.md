@@ -4,24 +4,24 @@
 
 <p align="center">
   <!-- Latest Release (Green) -->
-  <a href="https://github.com/Yanoee/EssentialsX/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Yanoee/EssentialsX?style=for-the-badge&logo=github&color=2ea44f" alt="Latest Release" />
-  </a>
-  <!-- Wiki (White) -->
-  <a href="https://github.com/Yanoee/EssentialsX/wiki">
-    <img src="https://img.shields.io/badge/Wiki-Docs-white?style=for-the-badge&logo=wikipedia&logoColor=black" alt="Wiki" />
-  </a>
-  <!-- ModDB (Blue) -->
-  <a href="https://mods.vintagestory.at/essentialsx">
-    <img src="https://img.shields.io/badge/ModDB-Download-0078D6?style=for-the-badge&logo=moddb&logoColor=white" alt="ModDB" />
-  </a>
-  <!-- Issues -->
-  <a href="https://github.com/Yanoee/EssentialsX/issues">
-    <img src="https://img.shields.io/github/issues/Yanoee/EssentialsX?style=for-the-badge&logo=github" alt="Issues" />
+  <a href="https://github.com/Yanoee/EssentialsX/releases/tag/v1.0.0">
+    <img src="https://img.shields.io/github/v/tag/Yanoee/EssentialsX?style=flat&logo=github&label=Release&color=2ea44f" alt="Release" />
   </a>
   <!-- Version -->
   <a href="https://github.com/Yanoee/EssentialsX/releases">
-    <img src="https://img.shields.io/github/v/tag/Yanoee/EssentialsX?label=Version&style=for-the-badge&color=blueviolet" alt="Version" />
+    <img src="https://img.shields.io/github/v/tag/Yanoee/EssentialsX?label=Version&style=flat&color=blueviolet" alt="Version" />
+  </a>
+  <!-- Issues -->
+  <a href="https://github.com/Yanoee/EssentialsX/issues">
+    <img src="https://img.shields.io/github/issues/Yanoee/EssentialsX?style=flat&logo=github&color=yellow" alt="Issues" />
+  </a>
+  <!-- Wiki (White) -->
+  <a href="https://github.com/Yanoee/EssentialsX/wiki">
+    <img src="https://img.shields.io/badge/Wiki-Docs-white?style=flat&logo=wikipedia&logoColor=black" alt="Wiki" />
+  </a>
+  <!-- ModDB (Blue) -->
+  <a href="https://mods.vintagestory.at/essentialsx">
+    <img src="https://img.shields.io/badge/ModDB-Download-0078D6?style=flat&logo=moddb&logoColor=white" alt="ModDB" />
   </a>
 </p>
 
