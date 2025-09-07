@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "EssentialsX": {
+      "commandName": "Project",
+      "workingDirectory": "C:\\Users\\adaca\\AppData\\Roaming\\Vintagestory"
+    },
+    "VS debug": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Users\\adaca\\AppData\\Roaming\\Vintagestory\\Vintagestory.exe",
+      "commandLineArgs": "--tracelog --addModPath \"$(ProjectDir)/bin/Debug/net8.0\"",
+      "workingDirectory": "C:\\Users\\adaca\\AppData\\Roaming\\Vintagestory"
+    }
+  }
+}
