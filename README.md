@@ -1,3 +1,4 @@
+![EssentialsX Banner](https://images2.imgbox.com/d8/c0/58Scr2hu_o.png)
 # EssentialsX for Vintage Story
 EssentialsX is a modular **server utility pack** made for Vintage Story.<br>It boosts the server experience by addressing the absence of built-in server-side plugins.<br>
 With features like homes, rules, TPA, TPR, Rcon integration, and webAPI support, everything is easily adjustable through straightforward `.json` files.<br>
@@ -26,6 +27,7 @@ Whether you’re running a small private server or a large community, Essentials
 ## 📦 Installation
 1. Download the latest release `EssentialsX.zip` from [Releases](https://github.com/Yanoee/EssentialsX/releases).  
 OR download from [VintageStory ModDB](https://mods.vintagestory.at/essentialsx)
+
 2. Place it into your server’s mods folder:
    - **Windows:** `%AppData%\VintagestoryData\Mods`
    - **Linux (client default):** `~/.config\VintagestoryData/Mods`
@@ -100,3 +102,6 @@ A dedicated **RCON (Remote Console)** and **WebAPI** system is planned, enabling
 **Goal:**  
 Bring Vintage Story closer to “modern” server management seen in other games (like Minecraft Spigot/Bukkit or Rust Oxide), where websites can interact with the server easily and securely.
 ---
+<p align="center">
+<img src="https://images2.imgbox.com/82/c0/aObb9Xxy_o.png" alt="Button" width="256" height="256">
+</p>
