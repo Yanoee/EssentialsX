@@ -1,56 +1,57 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <AssemblyName>EssentialsX</AssemblyName>
-    <RootNamespace>EssentialsX</RootNamespace>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<AssemblyName>EssentialsX</AssemblyName>
+		<RootNamespace>EssentialsX</RootNamespace>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<PlatformTarget>x64</PlatformTarget>
+	</PropertyGroup>
 
-  <PropertyGroup>
-    <!-- Change this if your Mods folder differs -->
-    <ModsDir>C:\Users\adaca\AppData\Roaming\VintagestoryData\Mods</ModsDir>
-  </PropertyGroup>
+	<PropertyGroup>
+		<!-- Change this if your Mods folder differs -->
+		<ModsDir>C:\Users\adaca\AppData\Roaming\VintagestoryData\Mods</ModsDir>
+	</PropertyGroup>
 
-  <Target Name="PostBuild" AfterTargets="Build">
-    <PropertyGroup>
-      <ModZip>$(OutDir)EssentialsX.zip</ModZip>
-      <TempDir>$(OutDir)EssentialsX_PackTemp</TempDir>
-    </PropertyGroup>
+	<Target Name="PostBuild" AfterTargets="Build">
+		<PropertyGroup>
+			<ModZip>$(OutDir)EssentialsX.zip</ModZip>
+			<TempDir>$(OutDir)EssentialsX_PackTemp</TempDir>
+		</PropertyGroup>
 
-    <!-- Clean temp -->
-    <RemoveDir Directories="$(TempDir)" />
-    <MakeDir Directories="$(TempDir)" />
+		<!-- Clean temp -->
+		<RemoveDir Directories="$(TempDir)" />
+		<MakeDir Directories="$(TempDir)" />
 
-    <!-- Copy modinfo.json + DLL into temp -->
-	<Copy SourceFiles="$(ProjectDir)modicon.png" DestinationFolder="$(TempDir)" />
-	<Copy SourceFiles="$(ProjectDir)modinfo.json" DestinationFolder="$(TempDir)" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(TempDir)" />
-	<Copy SourceFiles="$(TargetPath)/../EssentialsX.pdb" DestinationFolder="$(TempDir)" />
-	  
-    <!-- Delete old zip -->
-    <Delete Files="$(ModZip)" />
+		<!-- Copy modinfo.json + DLL into temp -->
+		<Copy SourceFiles="$(ProjectDir)modicon.png" DestinationFolder="$(TempDir)" />
+		<Copy SourceFiles="$(ProjectDir)modinfo.json" DestinationFolder="$(TempDir)" />
+		<Copy SourceFiles="$(TargetPath)" DestinationFolder="$(TempDir)" />
+		<Copy SourceFiles="$(TargetPath)/../EssentialsX.pdb" DestinationFolder="$(TempDir)" />
 
-    <!-- Create new zip using .NET ZipFile -->
-    <Exec Command="powershell -NoLogo -NoProfile -Command ^&#xD;&#xA;      Add-Type -AssemblyName 'System.IO.Compression.FileSystem'; ^&#xD;&#xA;      [System.IO.Compression.ZipFile]::CreateFromDirectory('$(TempDir)', '$(ModZip)', [System.IO.Compression.CompressionLevel]::Optimal, $false);" />
+		<!-- Delete old zip -->
+		<Delete Files="$(ModZip)" />
 
-    <!-- Cleanup temp folder -->
-    <RemoveDir Directories="$(TempDir)" />
+		<!-- Create new zip using .NET ZipFile -->
+		<Exec Command="powershell -NoLogo -NoProfile -Command ^&#xD;&#xA;      Add-Type -AssemblyName 'System.IO.Compression.FileSystem'; ^&#xD;&#xA;      [System.IO.Compression.ZipFile]::CreateFromDirectory('$(TempDir)', '$(ModZip)', [System.IO.Compression.CompressionLevel]::Optimal, $false);" />
 
-    <!-- Optional: copy to Mods folder if it exists -->
-    <!--<Message Text="Copying to Mods dir: $(ModsDir)" Importance="high" Condition="Exists('$(ModsDir)')" />-->
-    <!--<Copy SourceFiles="$(ModZip)" DestinationFolder="$(ModsDir)" Condition="Exists('$(ModsDir)')" />-->
-  </Target>
+		<!-- Cleanup temp folder -->
+		<RemoveDir Directories="$(TempDir)" />
 
-  <ItemGroup>
-    <Reference Include="VintagestoryAPI">
-      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryAPI.dll</HintPath>
-    </Reference>
-    <Reference Include="VintagestoryLib">
-      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryLib.dll</HintPath>
-    </Reference>
-    <Reference Include="VintagestoryServer">
-      <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryServer.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+		<!-- Optional: copy to Mods folder if it exists -->
+		<!--<Message Text="Copying to Mods dir: $(ModsDir)" Importance="high" Condition="Exists('$(ModsDir)')" />-->
+		<!--<Copy SourceFiles="$(ModZip)" DestinationFolder="$(ModsDir)" Condition="Exists('$(ModsDir)')" />-->
+	</Target>
+
+	<ItemGroup>
+		<Reference Include="VintagestoryAPI">
+			<HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryAPI.dll</HintPath>
+		</Reference>
+		<Reference Include="VintagestoryLib">
+			<HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryLib.dll</HintPath>
+		</Reference>
+		<Reference Include="VintagestoryServer">
+			<HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryServer.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 </Project>

@@ -233,7 +233,7 @@ namespace EssentialsX.Modules.Home
                 }
             }
             player.SendMessage(GlobalConstants.GeneralChatGroup,
-                $"{messages.HomeHeader}\n{msg}\n{messages.HomeFooter}",
+                $"{messages.HomeHeader}\n{messages.HomePrefix}: {msg}\n{messages.HomeFooter}",
                 EnumChatType.Notification);
         }
 
