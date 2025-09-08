@@ -17,61 +17,63 @@ namespace EssentialsX.Modules.Home
 
         private const string ModuleName = "Home";
 
-        public HomeCommands(ICoreServerAPI sapi, HomeSettings homeSettings, HomeMessages homeMessages)
+        public HomeCommands(ICoreServerAPI sapi, HomeSettings? homeSettings, HomeMessages? homeMessages)
         {
             this.sapi = sapi;
             try
             {
-                settings = HomeSettings.LoadOrCreate(sapi);
-                messages = HomeMessages.LoadOrCreate(sapi);
+                settings = homeSettings ?? HomeSettings.LoadOrCreate(sapi);
+                messages = homeMessages ?? HomeMessages.LoadOrCreate(sapi);
             }
             catch (Exception ex)
             {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load {0} module.", ex);
+                sapi.World.Logger.Error("[EssentialsX] Failed to init Homes module: {0}", ex);
                 settings = new HomeSettings();
                 messages = new HomeMessages();
             }
+
             store = new HomesStore(sapi);
         }
-
 
         // Registration
         public void Register()
         {
             sapi.World.Logger.Event("[EssentialsX] Loaded module: {0}", ModuleName);
 
-            if (settings != null && !settings.Enabled)
+            if (settings != null && settings.Enabled)
             {
-                sapi.World.Logger.Notification("[EssentialsX] {0} disabled via settings.");
-                return;
+                var nameOpt = new WordArgParser("name", false, null); // (I dont even know what does keep or remove????)
+                //var nameOpt = TextCommandParsers.OptionalWord("name");  // use this maybe??
+
+                sapi.ChatCommands.Create("sethome")
+                    .RequiresPlayer().RequiresPrivilege("chat")
+                    .WithDescription(messages.Descriptions.sethome)
+                    .WithArgs(nameOpt)
+                    .HandleWith(SetHome);
+
+                sapi.ChatCommands.Create("delhome")
+                    .RequiresPlayer().RequiresPrivilege("chat")
+                    .WithDescription(messages.Descriptions.delhome)
+                    .WithArgs(nameOpt)
+                    .HandleWith(DelHome);
+
+                sapi.ChatCommands.Create("home")
+                    .RequiresPlayer().RequiresPrivilege("chat")
+                    .WithDescription(messages.Descriptions.home)
+                    .WithArgs(nameOpt)
+                    .HandleWith(Home);
+
+                sapi.ChatCommands.Create("homes")
+                    .RequiresPlayer().RequiresPrivilege("chat")
+                    .WithDescription(messages.Descriptions.homes)
+                    .HandleWith(ListHomes);
             }
-
-            var wordOpt = new WordArgParser("name", false, null);
-
-            sapi.ChatCommands.Create("sethome")
-                .RequiresPlayer().RequiresPrivilege("chat")
-                .WithDescription($"{messages} {messages.Descriptions.sethome}")
-                .WithArgs(wordOpt)
-                .HandleWith(SetHome);
-
-            sapi.ChatCommands.Create("delhome")
-                .RequiresPlayer().RequiresPrivilege("chat")
-                .WithDescription($"{messages} {messages.Descriptions.delhome}")
-                .WithArgs(wordOpt)
-                .HandleWith(DelHome);
-
-            sapi.ChatCommands.Create("home")
-                .RequiresPlayer().RequiresPrivilege("chat")
-                .WithDescription($"{messages} {messages.Descriptions.home}")
-                .WithArgs(wordOpt)
-                .HandleWith(Home);
-
-            sapi.ChatCommands.Create("homes")
-                .RequiresPlayer().RequiresPrivilege("chat")
-                .WithDescription($"{messages} {messages.Descriptions.homes}")
-                .HandleWith(ListHomes);
-
+            else
+            {
+                sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: {0}", ModuleName);
+            }
         }
+
 
         // Handlers 
         private TextCommandResult SetHome(TextCommandCallingArgs args)
@@ -229,14 +231,15 @@ namespace EssentialsX.Modules.Home
             {
                 foreach (var (key, value) in vars)
                 {
-                    if (key != null) msg = msg.Replace("{" + key + "}", value ?? "");
+                    if (key != null) msg = msg.Replace("{" + key + "}", Esc(value));
                 }
             }
             player.SendMessage(GlobalConstants.GeneralChatGroup,
                 $"{messages.HomeHeader}\n{messages.HomePrefix}: {msg}\n{messages.HomeFooter}",
                 EnumChatType.Notification);
         }
-
+        private static string Esc(string? s) =>
+            (s ?? "").Replace("<", "&lt;").Replace(">", "&gt;");
 
 
         private void CancelWarmup(IServerPlayer player, string reasonTemplate)

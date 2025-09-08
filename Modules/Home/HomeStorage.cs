@@ -32,7 +32,6 @@ namespace EssentialsX.Modules.Home
         public HomesStore(ICoreServerAPI sapi)
         {
             this.sapi = sapi;
-            // Proper path under VintagestoryData/ModData
             dir = Path.Combine(sapi.GetOrCreateDataPath("ModData"), "EssentialsX", "playerdata");
             Directory.CreateDirectory(dir);
         }

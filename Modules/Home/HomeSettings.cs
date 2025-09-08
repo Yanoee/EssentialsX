@@ -4,11 +4,11 @@ namespace EssentialsX.Modules.Home
 {
     public class HomeSettings
     {
-        public bool Enabled { get; set; } = true; // master on/off for the whole TPA module
+        public bool Enabled { get; set; } = true; // master on/off 
         public double WarmupSeconds { get; set; } = 5;
         public double CooldownSeconds { get; set; } = 60;
 
-        // --- Safety / rules (placeholders for future enforcement) ---
+        // --- Safety / rules
         public bool SafeTeleport { get; set; } = true;
         public int SafeScanRadius { get; set; } = 4;
         public int SafeScanMaxYDiff { get; set; } = 3;

@@ -10,7 +10,7 @@ namespace EssentialsX.Modules.Home
         public DescriptionsGroup Descriptions { get; set; } = new DescriptionsGroup();
 
         public string HomeHeader { get; set; } = " ";
-        public string HomePrefix { get; set; } = "<strong><font color=#FFFFFF>[</font><font color='#7E2DAD'>Home</font><font color=#FFFFFF>]</font></strong>";
+        public string HomePrefix { get; set; } = "<strong><font color='#FFFFFF'>[</font><font color='#7E2DAD'>Home</font><font color='#FFFFFF'>]</font></strong>";
         public string HomeFooter { get; set; } = " ";
 
         private static readonly JsonSerializerOptions JsonOptions = new()
@@ -29,10 +29,10 @@ namespace EssentialsX.Modules.Home
 
             public string Saved { get; set; } = "<font color='#FFFFFF'>Home '</font><font color='#73FF00' weight='bold'>{name}</font><font color='#FFFFFF'>' saved.</font>";
             public string Deleted { get; set; } = "<font color='#FFFFFF'>Home '</font><font color='#C41B1B'>{name}</font><font color='#FFFFFF'>' deleted.</font>";
-            public string NoHome { get; set; } = "<font color='#FFFFFF'>You no current home.</font>";
+            public string NoHome { get; set; } = "<font color='#FFFFFF'>You have no current home.</font>";
 
             public string ListNone { get; set; } = "<font color='#FFFFFF'>You have no homes. To set one </font><strong><font color='#C41B1B'>/sethome</font></strong>";
-            public string ListSome { get; set; } = "<font color='#0019FF'>Homes: ({count}): {list}</font>";
+            public string ListSome { get; set; } = "<font color='#0019FF'>Homes ({count}): {list}</font>";
 
             public string Teleporting { get; set; } = "<font color='#1BC470'>Teleporting to '{name}' in {seconds}s. Don't move!</font>";
             public string Teleported { get; set; } = "<font color='#1B70C4'>Teleported to '{name}'.</font>";
@@ -50,10 +50,10 @@ namespace EssentialsX.Modules.Home
 
         public class DescriptionsGroup
         {
-            public string sethome { get; set; } = "<font color='#1B70C4'>Save your current position as a home.";
-            public string delhome { get; set; } = "<font color='#C41B1B'>Delete a saved home.";
-            public string home { get; set; } = "<font color='#1B70C4'>Teleport to a saved home (default: last used).";
-            public string homes { get; set; } = "<font color='#1B70C4'>List your homes.";
+            public string sethome { get; set; } = "<font color='#1B70C4'>Save your current position as a home.</font>";
+            public string delhome { get; set; } = "<font color='#C41B1B'>Delete a saved home.</font>";
+            public string home { get; set; } = "<font color='#1B70C4'>Teleport to a saved home (default: last used).</font>";
+            public string homes { get; set; } = "<font color='#1B70C4'>List your homes.</font>";
         }
 
         public static HomeMessages LoadOrCreate(ICoreAPI api)
