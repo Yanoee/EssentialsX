@@ -3,7 +3,7 @@
   "Name": "EssentialsX",
   "ModID": "essentialsx",
   "Description": "Modular server essentials for Vintage Story: /tpa, homes, teleport and more—fully configurable per module.",
-  "Version": "1.0.3",
+  "Version": "1.0.0",
   "Authors": [ "Yanoee" ],
   "Contributors": [ "Y3GeZ", "MeoWara" ],
   "Website": "http://212.68.34.133/",
@@ -12,5 +12,5 @@
   "RequiredOnServer": true,
   "Dependencies": {
     "game": "1.21.0"
-  }
+  } 
 }

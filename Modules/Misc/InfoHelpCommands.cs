@@ -11,7 +11,10 @@ namespace EssentialsX.Modules.Misc
         private InfoHelpSettings settings = null!;
         private InfoHelpMessages msgs = null!;
         private const string ModuleName = "InfoHelp";
-
+        private static readonly string[] PlannedModules =
+        {
+            "Homes","InfoHelp","Rules","TPA","TPR","Spawn","Back","RTP","Kits","Moderation","JoinLeave","TabList"
+        };
         public InfoHelpCommands(ICoreServerAPI sapi)
         {
             this.sapi = sapi;
@@ -20,40 +23,45 @@ namespace EssentialsX.Modules.Misc
                 settings = InfoHelpSettings.LoadOrCreate(sapi);
                 msgs = InfoHelpMessages.LoadOrCreate(sapi);
             }
-            catch
+            catch (Exception ex)
             {
                 settings = new InfoHelpSettings();
                 msgs = new InfoHelpMessages();
-                sapi.World.Logger.Error("[EssentialsX] Failed to load {0} module.");
+                sapi.World.Logger.Error("[EssentialsX] Failed to init InfoHelp module: {0}", ex);
             }
         }
 
         public void Register()
         {
             sapi.World.Logger.Event("[EssentialsX] Loaded module: {0}", ModuleName);
-            if (!settings.Enabled)
+
+            if (settings != null && settings.Enabled)
+            {
+                sapi.ChatCommands
+                   .Create("essentialsx")
+                   .WithDescription(msgs.RootDesc)
+                   .RequiresPrivilege("chat")
+                   .HandleWith(OnHelpCommand)   // Root → show help if no subcommand
+                   .BeginSubCommand("info")
+                   .WithDescription(msgs.InfoDesc)
+                   .HandleWith(OnInfoCommand)
+                   .EndSubCommand()
+                   .BeginSubCommand("help")
+                   .WithDescription(msgs.HelpDesc)
+                   .HandleWith(OnHelpCommand)
+                   .EndSubCommand()
+                   .BeginSubCommand("reload")
+                   .WithDescription(msgs.ReloadDesc)
+                   .RequiresPrivilege("admin")
+                   .HandleWith(OnReloadCommand)
+                   .EndSubCommand();
+
+            }
+            else
             {
                 sapi.World.Logger.Event("[EssentialsX] {0} disabled via settings.", ModuleName);
                 return;
             }
-
-            sapi.ChatCommands
-                .Create("essentialsx")
-                .WithDescription(msgs.RootDesc)
-                .RequiresPrivilege("chat")
-                .BeginSubCommand("info")
-                .WithDescription(msgs.InfoDesc)
-                .HandleWith(OnInfoCommand)
-                .EndSubCommand()
-                .BeginSubCommand("help")
-                .WithDescription(msgs.HelpDesc)
-                .HandleWith(OnHelpCommand)
-                .EndSubCommand()
-                .BeginSubCommand("reload")
-                .WithDescription(msgs.ReloadDesc)
-                .RequiresPrivilege("admin")
-                .HandleWith(OnReloadCommand)
-                .EndSubCommand();
         }
 
         private TextCommandResult OnInfoCommand(TextCommandCallingArgs args)
@@ -62,16 +70,16 @@ namespace EssentialsX.Modules.Misc
                 return TextCommandResult.Error(msgs.PlayerOnly);
 
             var mod = sapi.ModLoader.GetMod(settings.ModId);
-            string description = msgs.Description;
-            string status = mod != null ? "Loaded Modules: " : "FATAL ERROR!";
             string version = mod?.Info?.Version ?? "Unknown";
+            var loaded = EssentialsXRegistry.GetLoaded().OrderBy(s => s).ToList();
+            int loadedPlanned = loaded.Intersect(PlannedModules).Count();
+            int totalPlanned = PlannedModules.Length;
+            string status = $"{loadedPlanned}/{totalPlanned} • {string.Join(", ", loaded)}";
 
-            var body = new StringBuilder()
-                .AppendLine(msgs.InfoBody
-                .Replace("{description}", description)
+            string body = msgs.InfoBody
+                .Replace("{description}", msgs.Description)
                 .Replace("{status}", status)
-                .Replace("{version}", version))
-                .ToString();
+                .Replace("{version}", version);
 
             SendBlock(player, body);
             return TextCommandResult.Success();
@@ -86,11 +94,15 @@ namespace EssentialsX.Modules.Misc
                 msgs.HelpTeleport
                 .Concat(msgs.HelpHomes)
                 .Concat(msgs.HelpRules)
-                .Concat(player.HasPrivilege("admin") ? msgs.HelpAdmin : new string[0]);
+                .Concat(player.HasPrivilege("admin") ? msgs.HelpAdmin : Array.Empty<string>());
+
+            var safeLines = lines.Select(EscapeVtml);
+
+            var colored = safeLines.Select(s => string.IsNullOrWhiteSpace(s) ? s : $"{msgs.HelpLinePrefix}{s}{msgs.HelpLineSuffix}");
 
             var body = new StringBuilder()
                 .AppendLine(msgs.HelpTitle)
-                .AppendLine(string.Join("\n", lines))
+                .AppendLine(string.Join("\n", colored))
                 .ToString();
 
             SendBlock(player, body);
@@ -104,8 +116,9 @@ namespace EssentialsX.Modules.Misc
 
             SendBlock(player, msgs.Reloading);
 
-            // If you later expose per-module reloaders, call them here.
-            // (Kept generic to avoid cross-module coupling.)
+            // Reload settings + messages from disk
+            settings = InfoHelpSettings.LoadOrCreate(sapi);
+            msgs = InfoHelpMessages.LoadOrCreate(sapi);
 
             SendBlock(player, msgs.Reloaded);
             sapi.World.Logger.Event("[EssentialsX] Configs reloaded by {0}", player.PlayerName);
@@ -117,5 +130,7 @@ namespace EssentialsX.Modules.Misc
         {
             plr.SendMessage(GlobalConstants.GeneralChatGroup, $"{msgs.Header}\n{msgs.Prefix}\n{body}\n{msgs.Footer}", EnumChatType.Notification);
         }
+        private static string EscapeVtml(string s)
+            => s.Replace("<", "&lt;").Replace(">", "&gt;");
     }
 }

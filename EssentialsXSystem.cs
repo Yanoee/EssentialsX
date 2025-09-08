@@ -4,7 +4,6 @@ using EssentialsX.Modules.Teleport;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 
-
 namespace EssentialsX
 {
     public class EssentialsXSystem : ModSystem
@@ -34,52 +33,97 @@ namespace EssentialsX
             {
                 var homeSettings = HomeSettings.LoadOrCreate(sapi);
                 var homeMessages = HomeMessages.LoadOrCreate(sapi);
-                new HomeCommands(sapi, homeSettings, homeMessages).Register();
 
+                if (homeSettings.Enabled)
+                {
+                    new HomeCommands(sapi, homeSettings, homeMessages).Register();
+                    EssentialsXRegistry.Register("Homes");
+                }
+                else
+                {
+                    sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: Homes");
+                }
             }
             catch (Exception ex)
             {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load {0} module.", ex);
+                sapi.World.Logger.Error("[EssentialsX] Failed to load Homes module: {0}", ex);
             }
 
-            // === Misc / Help, Rules, Join-Leave ===
-            //Help
+            // === Misc / InfoHelp ===
             try
             {
-                new InfoHelpCommands(sapi).Register();
+                var infoSettings = InfoHelpSettings.LoadOrCreate(sapi);
+                if (infoSettings.Enabled)
+                {
+                    new InfoHelpCommands(sapi).Register();
+                    EssentialsXRegistry.Register("InfoHelp");
+                }
+                else
+                {
+                    sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: InfoHelp");
+                }
             }
             catch (Exception ex)
             {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load {0} module.", ex);
+                sapi.World.Logger.Error("[EssentialsX] Failed to load InfoHelp module: {0}", ex);
             }
-            // Rules
+
+            // === Rules ===
             try
             {
-                new Rules(sapi).Register();
+                var rulesSettings = Rules.RulesSettings.LoadOrCreate(sapi);
+                if (rulesSettings.Enabled)
+                {
+                    new Rules(sapi).Register();
+                    EssentialsXRegistry.Register("Rules");
+                }
+                else
+                {
+                    sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: Rules");
+                }
             }
             catch (Exception ex)
             {
                 sapi.World.Logger.Error("[EssentialsX] Failed to load Rules module: {0}", ex);
             }
-            // === Teleport (TPA baseline) ===
+
+            // === Teleport (TPA) ===
             try
             {
                 new TPACommands(sapi).Register();
+                EssentialsXRegistry.Register("TPA");
             }
             catch (Exception ex)
             {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load {0} module.", ex);
-            }
-            // === Teleport (TPR: pull player to you) ===
-            try
-            {
-                new TPRCommands(sapi).Register(); 
-            }
-            catch (Exception ex)
-            {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load {0} module.", ex);
+                sapi.World.Logger.Error("[EssentialsX] Failed to load TPA module: {0}", ex);
             }
 
+            // === Teleport (TPR) ===
+            try
+            {
+                new TPRCommands(sapi).Register();
+                EssentialsXRegistry.Register("TPR");
+            }
+            catch (Exception ex)
+            {
+                sapi.World.Logger.Error("[EssentialsX] Failed to load TPR module: {0}", ex);
+            }
         }
+    }
+
+    // essentialsx info 
+    public static class EssentialsXRegistry
+    {
+        private static readonly HashSet<string> loaded = new();
+
+        public static void Register(string moduleName)
+        {
+            if (!string.IsNullOrWhiteSpace(moduleName))
+            {
+                loaded.Add(moduleName);
+            }
+        }
+
+        public static IReadOnlyCollection<string> GetLoaded() => loaded;
     }
 }

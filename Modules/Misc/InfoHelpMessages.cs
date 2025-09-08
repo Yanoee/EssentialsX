@@ -14,7 +14,7 @@ namespace EssentialsX.Modules.Misc
         };
         // Frame
         public string Header { get; set; } = " ";
-        public string Prefix { get; set; } = "<strong><font color=#FFFFFF>[</font><font color='#00FF80'>EssentialsX</font><font color=#FFFFFF>]</font></strong>";
+        public string Prefix { get; set; } = "<strong><font color='#FFFFFF'>[</font><font color='#00FF80'>EssentialsX</font><font color='#FFFFFF'>]</font></strong>";
         public string Footer { get; set; } = " ";
 
         // Descriptions for command registration
@@ -32,7 +32,10 @@ namespace EssentialsX.Modules.Misc
         public string InfoBody { get; set; } = "Version: {version}\nStatus: {status}\n{description}";
 
         // Help
-        public string HelpTitle { get; set; } = "<font color='#84EE53'>EssentialsX Help</font>";
+        public string HelpTitle { get; set; } = "<font color='#84EE53'>EssentialsX Help:</font>";
+        public string HelpLinePrefix { get; set; } = "<font color='#FFFFFF'>";
+        public string HelpLineSuffix { get; set; } = "</font>";
+
         public List<string> HelpTeleport { get; set; } = new()
         {
             "Teleport:",
