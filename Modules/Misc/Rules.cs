@@ -22,17 +22,20 @@ namespace EssentialsX.Modules.Misc
         {
             sapi.World.Logger.Event("[EssentialsX] Loaded module: {0}", ModuleName);
 
-            if (settings != null && !settings.Enabled)
+            if (settings != null && settings.Enabled)
+            {
+                sapi.ChatCommands.Create("rules")
+                    .WithDescription(messages.Usage)
+                    .RequiresPlayer()
+                    .RequiresPrivilege("chat")
+                    .HandleWith(OnRules);
+            }
+            else
             {
                 sapi.World.Logger.Event("[EssentialsX] {0} disabled via settings.", ModuleName);
                 return;
             }
 
-            sapi.ChatCommands.Create("rules")
-                .WithDescription(messages.Usage)
-                .RequiresPlayer()
-                .RequiresPrivilege("chat")
-                .HandleWith(OnRules);
         }
 
         // --- Settings ---
@@ -82,10 +85,11 @@ namespace EssentialsX.Modules.Misc
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
 
-            public string Header { get; set; } = "<font color='#454545'>[</font><font color='#5BD9D9' weight='bold'>Rules</font><font color='#454545'>]</font>";
-            public string Footer { get; set; } = " ";
+            public string RulesHeader { get; set; } = " ";
+            public string RulesPrefix { get; set; } = "<strong><font color=#FFFFFF>[</font><font color='#FFFF00'>Rules</font><font color=#FFFFFF>]</font></strong>";
+            public string RulesFooter { get; set; } = " ";
             public string Usage { get; set; } = "/rules [page] — show server rules";
-            public string PageLabel { get; set; } = "Page {page}/{total}";
+            public string PageLabel { get; set; } = "<font color='#0080FF'>Page {page}/{total}</font>";
             public string ItemFormat { get; set; } = "{index}. {text}";
             public string NoRules { get; set; } = "No rules configured.";
             public List<string> Lines { get; set; } = new()
@@ -185,9 +189,10 @@ namespace EssentialsX.Modules.Misc
             {
                 var body = messages.ItemFormat
                     .Replace("{index}", (i + 1).ToString())
-                    .Replace("{text}", lines[i] ?? string.Empty);
+                    .Replace("{text}", $"<font color='#FFFFFF'>{lines[i] ?? string.Empty}</font>");
                 parts.Add(body);
             }
+
 
             parts.Add(messages.PageLabel.Replace("{page}", page.ToString()).Replace("{total}", totalPages.ToString()));
 
@@ -199,7 +204,7 @@ namespace EssentialsX.Modules.Misc
 
         private void SendBlock(IServerPlayer plr, string body)
         {
-            plr.SendMessage(GlobalConstants.GeneralChatGroup, $"{messages.Header}\n{body}\n{messages.Footer}", EnumChatType.Notification);
+            plr.SendMessage(GlobalConstants.GeneralChatGroup, $"{messages.RulesHeader}\n{messages.RulesPrefix}\n{body}\n{messages.RulesFooter}", EnumChatType.Notification);
         }
     }
 }
