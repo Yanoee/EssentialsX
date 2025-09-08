@@ -1,15 +1,24 @@
-﻿using System.Text.Json;
+﻿using System.Text.Encodings.Web;
+using System.Text.Json;
 using Vintagestory.API.Server;
+
 
 namespace EssentialsX.Modules.Misc
 {
     public class InfoHelpMessages
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
         // Frame
-        public string Header { get; set; } = "[<font color=\"#5384EE\" weight=\"bold\">EssentialsX</font>]";
+        public string Header { get; set; } = " ";
+        public string Prefix { get; set; } = "<strong><font color=#FFFFFF>[</font><font color='#00FF80'>EssentialsX</font><font color=#FFFFFF>]</font></strong>";
         public string Footer { get; set; } = " ";
 
         // Descriptions for command registration
+        public string Description { get; set; } = "<font color='#00FF80'>EssentialsX</font><font color='#FFFFFF'> | Server QoL & Moderation | Author: </font><font color='#0080FF'>Yanoee</font>";
         public string RootDesc { get; set; } = "EssentialsX root command";
         public string InfoDesc { get; set; } = "Show EssentialsX mod info";
         public string HelpDesc { get; set; } = "Show EssentialsX help";
@@ -19,11 +28,11 @@ namespace EssentialsX.Modules.Misc
         public string PlayerOnly { get; set; } = "Player only.";
 
         // Info
-        public string InfoTitle { get; set; } = "<font color=\"#84EE53\">EssentialsX</font>";
+        public string InfoTitle { get; set; } = "<font color='#84EE53'>EssentialsX</font>";
         public string InfoBody { get; set; } = "Version: {version}\nStatus: {status}\n{description}";
 
         // Help
-        public string HelpTitle { get; set; } = "<font color=\"#84EE53\">EssentialsX Help</font>";
+        public string HelpTitle { get; set; } = "<font color='#84EE53'>EssentialsX Help</font>";
         public List<string> HelpTeleport { get; set; } = new()
         {
             "Teleport:",
@@ -74,7 +83,8 @@ namespace EssentialsX.Modules.Misc
                 if (!File.Exists(path))
                 {
                     var def = new InfoHelpMessages();
-                    File.WriteAllText(path, JsonSerializer.Serialize(def, new JsonSerializerOptions { WriteIndented = true }));
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    File.WriteAllText(path, JsonSerializer.Serialize(def, JsonOptions));
                     return def;
                 }
                 return JsonSerializer.Deserialize<InfoHelpMessages>(File.ReadAllText(path)) ?? new InfoHelpMessages();

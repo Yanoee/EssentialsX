@@ -42,17 +42,17 @@ namespace EssentialsX.Modules.Misc
                 .WithDescription(msgs.RootDesc)
                 .RequiresPrivilege("chat")
                 .BeginSubCommand("info")
-                    .WithDescription(msgs.InfoDesc)
-                    .HandleWith(OnInfoCommand)
+                .WithDescription(msgs.InfoDesc)
+                .HandleWith(OnInfoCommand)
                 .EndSubCommand()
                 .BeginSubCommand("help")
-                    .WithDescription(msgs.HelpDesc)
-                    .HandleWith(OnHelpCommand)
+                .WithDescription(msgs.HelpDesc)
+                .HandleWith(OnHelpCommand)
                 .EndSubCommand()
                 .BeginSubCommand("reload")
-                    .WithDescription(msgs.ReloadDesc)
-                    .RequiresPrivilege("admin")
-                    .HandleWith(OnReloadCommand)
+                .WithDescription(msgs.ReloadDesc)
+                .RequiresPrivilege("admin")
+                .HandleWith(OnReloadCommand)
                 .EndSubCommand();
         }
 
@@ -62,16 +62,15 @@ namespace EssentialsX.Modules.Misc
                 return TextCommandResult.Error(msgs.PlayerOnly);
 
             var mod = sapi.ModLoader.GetMod(settings.ModId);
+            string description = msgs.Description;
+            string status = mod != null ? "Loaded Modules: " : "FATAL ERROR!";
             string version = mod?.Info?.Version ?? "Unknown";
-            string description = mod?.Info?.Description ?? "EssentialsX provides homes, rules, and teleportation commands.";
-            string status = mod != null ? "Loaded" : "Loaded without error(s)";
 
             var body = new StringBuilder()
-                .AppendLine(msgs.InfoTitle)
                 .AppendLine(msgs.InfoBody
-                    .Replace("{version}", version)
-                    .Replace("{status}", status)
-                    .Replace("{description}", description))
+                .Replace("{description}", description)
+                .Replace("{status}", status)
+                .Replace("{version}", version))
                 .ToString();
 
             SendBlock(player, body);
@@ -116,7 +115,7 @@ namespace EssentialsX.Modules.Misc
         // --- helpers ---
         private void SendBlock(IServerPlayer plr, string body)
         {
-            plr.SendMessage(GlobalConstants.GeneralChatGroup, $"{msgs.Header}\n{body}\n{msgs.Footer}", EnumChatType.Notification);
+            plr.SendMessage(GlobalConstants.GeneralChatGroup, $"{msgs.Header}\n{msgs.Prefix}\n{body}\n{msgs.Footer}", EnumChatType.Notification);
         }
     }
 }
