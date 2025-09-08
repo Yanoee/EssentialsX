@@ -44,14 +44,17 @@
 	</Target>
 
 	<ItemGroup>
-		<Reference Include="VintagestoryAPI">
-			<HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryAPI.dll</HintPath>
-		</Reference>
-		<Reference Include="VintagestoryLib">
-			<HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryLib.dll</HintPath>
-		</Reference>
-		<Reference Include="VintagestoryServer">
-			<HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryServer.dll</HintPath>
-		</Reference>
+	  <Reference Include="Vintagestory">
+	    <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\Vintagestory.dll</HintPath>
+	  </Reference>
+	  <Reference Include="VintagestoryAPI">
+	    <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryAPI.dll</HintPath>
+	  </Reference>
+	  <Reference Include="VintagestoryLib">
+	    <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryLib.dll</HintPath>
+	  </Reference>
+	  <Reference Include="VintagestoryServer">
+	    <HintPath>..\..\..\..\AppData\Roaming\Vintagestory\VintagestoryServer.dll</HintPath>
+	  </Reference>
 	</ItemGroup>
 </Project>
