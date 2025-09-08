@@ -101,7 +101,7 @@ Example `RulesMessages.json`:
 ### 📜 Rules - Rules module fully editable.
 ### 🔄 Teleportation - Standard teleportation module.
 ### ⚡ Back - Death location checkpoint.
-### 🏠 Spawn - Automatic teleprotonation for the spawn command.
+### 🏠 Spawn - Automatic teleportation for the spawn command.
 ### 🌍 Random Teleport (RTP) - Randomly teleports you somewhere in the world. 
 ### 👥 Join/Leave - Rich join & leave text module.
 ### 📋 TabList - TabList including header&footer and supports server advertisment.
