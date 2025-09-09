@@ -108,6 +108,26 @@ namespace EssentialsX
             {
                 sapi.World.Logger.Error("[EssentialsX] Failed to load TPR module: {0}", ex);
             }
+            // === Teleport (Back) ===
+            try
+            {
+                new BackCommands(sapi).Register();
+                EssentialsXRegistry.Register("Back");
+            }
+            catch (Exception ex)
+            {
+                sapi.World.Logger.Error("[EssentialsX] Failed to load Back module: {0}", ex);
+            }
+            // === Teleport (Spawn) ===
+            try
+            {
+                new SpawnCommands(sapi).Register();
+                EssentialsXRegistry.Register("Spawn");
+            }
+            catch (Exception ex)
+            {
+                sapi.World.Logger.Error("[EssentialsX] Failed to load Spawn module: {0}", ex);
+            }
         }
     }
 
