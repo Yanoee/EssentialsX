@@ -8,7 +8,6 @@ namespace EssentialsX.Modules.Home
     {
         public HomeGroup Home { get; set; } = new HomeGroup();
         public DescriptionsGroup Descriptions { get; set; } = new DescriptionsGroup();
-
         public string HomeHeader { get; set; } = " ";
         public string HomePrefix { get; set; } = "<strong><font color='#FFFFFF'>[</font><font color='#7E2DAD'>Home</font><font color='#FFFFFF'>]</font></strong>";
         public string HomeFooter { get; set; } = " ";

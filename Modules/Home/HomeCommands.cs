@@ -40,7 +40,7 @@ namespace EssentialsX.Modules.Home
         {
             sapi.World.Logger.Event("[EssentialsX] Loaded module: {0}", ModuleName);
 
-            if (settings != null && settings.Enabled)
+            if (settings?.Enabled == true)
             {
                 var nameOpt = new WordArgParser("name", false, null); // (I dont even know what does keep or remove????)
                 //var nameOpt = TextCommandParsers.OptionalWord("name");  // use this maybe??
