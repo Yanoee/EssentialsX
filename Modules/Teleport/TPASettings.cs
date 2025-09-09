@@ -1,48 +1,75 @@
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Vintagestory.API.Server;
 
 namespace EssentialsX.Modules.Teleport
 {
-    public class TPASettings
+    public class TpaConfig
     {
-        public bool Enabled { get; set; } = true;   // master on/off for the whole TPA module
+        // --- Settings
+        public bool Enabled { get; set; } = true;
         public int WarmupSeconds { get; set; } = 5;
         public int CooldownSeconds { get; set; } = 60;
         public int RequestExpireSeconds { get; set; } = 30;
-        public List<string> BypassRoles { get; set; } = new() { "admin" };
 
-        public static string ConfigDir(ICoreServerAPI sapi)
+        // Handlers 
+        public bool CancelOnMove { get; set; } = true;
+        public bool CancelOnDamage { get; set; } = true;
+
+        // --- Perm
+        public List<string>? BypassRoles { get; set; } = ["admin", "sumod", "crmod"];
+        public List<string>? BypassPlayers { get; set; } = ["Notch"];
+
+        // --- Messages
+        public TpaMessages Messages { get; set; } = new TpaMessages();
+
+        private const string RelFolder = "ModConfig/EssentialsX/Teleportation";
+        private const string FileName = "TpaConfig.json";
+
+        public static TpaConfig LoadOrCreate(ICoreServerAPI sapi)
         {
-            var root = sapi.GetOrCreateDataPath("ModConfig");
-            return Path.Combine(root, "EssentialsX", "Teleportation");
-        }
+            var folder = sapi.GetOrCreateDataPath(RelFolder);
+            var path = Path.Combine(folder, FileName);
 
-        public static string ConfigPath(ICoreServerAPI sapi) => Path.Combine(ConfigDir(sapi), "TPASettings.json");
+            if (!File.Exists(path))
+            {
+                var def = new TpaConfig();
+                Save(sapi, def);
+                return def;
+            }
 
-        public static TPASettings LoadOrCreate(ICoreServerAPI sapi)
-        {
             try
             {
-                var dir = ConfigDir(sapi);
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                var json = File.ReadAllText(path, Encoding.UTF8);
+                var cfg = JsonSerializer.Deserialize<TpaConfig>(json) ?? new TpaConfig();
 
-                var path = ConfigPath(sapi);
-                if (!File.Exists(path))
-                {
-                    var def = new TPASettings();
-                    var json = JsonSerializer.Serialize(def, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(path, json);
-                    return def;
-                }
-
-                var text = File.ReadAllText(path);
-                var cfg = JsonSerializer.Deserialize<TPASettings>(text);
-                return cfg ?? new TPASettings();
+                // null-fixes
+                cfg.Messages ??= new TpaMessages();
+                cfg.BypassRoles ??= [];
+                cfg.BypassPlayers ??= [];
+                return cfg;
             }
             catch
             {
-                return new TPASettings();
+                var def = new TpaConfig();
+                Save(sapi, def);
+                return def;
             }
+        }
+
+        public static void Save(ICoreServerAPI sapi, TpaConfig cfg)
+        {
+            var folder = sapi.GetOrCreateDataPath(RelFolder);
+            var path = Path.Combine(folder, FileName);
+            Directory.CreateDirectory(folder);
+
+            var opts = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
+            File.WriteAllText(path, JsonSerializer.Serialize(cfg, opts), Encoding.UTF8);
         }
     }
 }
