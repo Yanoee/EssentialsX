@@ -2,8 +2,8 @@
 {
     public class TpaMessages
     {
-        // Prefix-only wrapper (no header/footer)
-        public string Prefix { get; set; } = "<strong><font color='#FFFFFF'>[</font><font color='#5384EE' weight='bold'>TPA</font><font color='#FFFFFF'>]</font></strong>";
+        // Prefix
+        public string TPAPrefix { get; set; } = "<strong><font color='#FFFFFF'>[</font><font color='#5384EE' weight='bold'>TPA</font><font color='#FFFFFF'>]</font></strong>";
 
         // Descriptions
         public string DescTpa { get; set; } = "<font color='#00FF80'>/tpa &lt;player&gt; — request to teleport to a player</font>";
@@ -21,12 +21,13 @@
         public string NoPending { get; set; } = "<font color='#E04C4C'>You have no TPA request to accept/deny.</font>";
         public string NothingToCancel { get; set; } = "You have no pending TPA or warmup to cancel.";
         public string TeleportFailed { get; set; } = "<font color='#FF8080'>Teleport failed.</font>";
+        public string AlreadyTeleporting { get; set; } = "<font color='#C91212'>You already have a TPA teleport in progress.</font>";
+
 
         // Sent/receive
         public string SentSender { get; set; } = "<font color='#4CE0BB'>You sent {playername} a teleportation request.</font>";
         public string SentReceiver { get; set; } = "<font color='#4CE0BB'>You have received a teleportation request from {playername}.</font>";
-        public string ClickableReceiver { get; set; } =
-            "You have received teleport request from: {playername} <a href='command:///tpaccept'>[ACCEPT]</a>   <a href='command:///tpdeny'>[DENY]</a>";
+        public string ClickableReceiver { get; set; } = "<a href='command:///tpaccept'>[ACCEPT]</a>   <a href='command:///tpdeny'>[DENY]</a>";
 
         // Warmup start cancels
         public string BeginSender { get; set; } = "<font color='#4CE0E0'>You will be teleporting to {playername}. Do not move for {warmup}s!</font>";

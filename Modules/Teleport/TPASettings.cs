@@ -13,7 +13,7 @@ namespace EssentialsX.Modules.Teleport
         public int CooldownSeconds { get; set; } = 60;
         public int RequestExpireSeconds { get; set; } = 30;
 
-        // Handlers 
+        // --- Handlers 
         public bool CancelOnMove { get; set; } = true;
         public bool CancelOnDamage { get; set; } = true;
 
@@ -43,8 +43,6 @@ namespace EssentialsX.Modules.Teleport
             {
                 var json = File.ReadAllText(path, Encoding.UTF8);
                 var cfg = JsonSerializer.Deserialize<TpaConfig>(json) ?? new TpaConfig();
-
-                // null-fixes
                 cfg.Messages ??= new TpaMessages();
                 cfg.BypassRoles ??= [];
                 cfg.BypassPlayers ??= [];
