@@ -12,10 +12,10 @@ namespace EssentialsX.Modules.Teleport
     {
         private readonly ICoreServerAPI sapi;
         private SpawnConfig cfg = null!;
-        private readonly Dictionary<string, long> nextUseTimestampMs = new();
-        private readonly Dictionary<string, long> warmupCallback = new();
-        private readonly Dictionary<string, long> movePollListener = new();
-        private readonly HashSet<string> canceledWarmup = new();
+        private readonly Dictionary<string, long> nextUseTimestampMs = [];
+        private readonly Dictionary<string, long> warmupCallback = [];
+        private readonly Dictionary<string, long> movePollListener = [];
+        private readonly HashSet<string> canceledWarmup = [];
 
         public SpawnCommands(ICoreServerAPI sapi)
         {
@@ -58,6 +58,21 @@ namespace EssentialsX.Modules.Teleport
                 .HandleWith(OnSetSpawn);
 
             sapi.World.Logger.Event("[EssentialsX] Loaded module: Spawn");
+            sapi.Event.PlayerLeave += (IServerPlayer p) =>
+            {
+                var uid = p.PlayerUID;
+                canceledWarmup.Remove(uid);
+                if (movePollListener.TryGetValue(uid, out var pid))
+                {
+                    sapi.World.UnregisterGameTickListener(pid);
+                    movePollListener.Remove(uid);
+                }
+                if (warmupCallback.TryGetValue(uid, out var cbid))
+                {
+                    sapi.World.UnregisterCallback(cbid);
+                    warmupCallback.Remove(uid);
+                }
+            };
         }
 
         //Command Handlers
@@ -71,6 +86,13 @@ namespace EssentialsX.Modules.Teleport
                 Send(caller, cfg.Messages.Disabled);
                 return TextCommandResult.Success();
             }
+
+            if (warmupCallback.ContainsKey(caller.PlayerUID) || movePollListener.ContainsKey(caller.PlayerUID))
+            {
+                Send(caller, cfg.Messages.AlreadyTeleporting);
+                return TextCommandResult.Success();
+            }
+
             bool bypass = HasPermission(caller, cfg.BypassRoles, cfg.BypassPlayers);
             if (!bypass && cfg.CooldownSeconds > 0)
             {
@@ -235,6 +257,16 @@ namespace EssentialsX.Modules.Teleport
                 double tz = target.Z + 0.5;
                 player.Entity.TeleportToDouble(tx, ty, tz);
 
+                if (cfg.HasCustomSpawn && cfg.SpawnPosition != null)
+                {
+                    var s = cfg.SpawnPosition;
+                    var ent = player.Entity;
+                    ent.ServerPos.Yaw = s.Yaw;
+                    ent.ServerPos.Pitch = s.Pitch;
+                    ent.Pos.Yaw = s.Yaw;
+                    ent.Pos.Pitch = s.Pitch;
+                }
+
                 if (applyCooldown && cfg.CooldownSeconds > 0)
                 {
                     nextUseTimestampMs[player.PlayerUID] = sapi.World.ElapsedMilliseconds + (long)cfg.CooldownSeconds * 1000;
@@ -250,7 +282,6 @@ namespace EssentialsX.Modules.Teleport
 
         private BlockPos? ResolveSpawnTarget()
         {
-            // Custom spawn from JSON (if set)
             if (cfg.HasCustomSpawn && cfg.SpawnPosition != null)
             {
                 var s = cfg.SpawnPosition;
@@ -317,10 +348,10 @@ namespace EssentialsX.Modules.Teleport
         public bool UseSafeTeleport { get; set; } = true;
         public bool HasCustomSpawn { get; set; } = false;
         public SpawnPosition? SpawnPosition { get; set; } = null;
-        public List<string> BypassRoles { get; set; } = new() { "admin", "sumod", "crmod" };
-        public List<string> SetSpawnAllowedRoles { get; set; } = new() { "admin", "sumod", "crmod" };
-        public List<string> BypassPlayers { get; set; } = new() { "Notch" };
-        public List<string> SetSpawnAllowedPlayers { get; set; } = new() { "Notch" };
+        public List<string> BypassRoles { get; set; } = ["admin", "sumod", "crmod"];
+        public List<string> SetSpawnAllowedRoles { get; set; } = ["admin", "sumod", "crmod"];
+        public List<string> BypassPlayers { get; set; } = ["Notch"];
+        public List<string> SetSpawnAllowedPlayers { get; set; } = ["Notch"];
 
         public SpawnMessages Messages { get; set; } = new SpawnMessages();
         private const string RelFolder = "ModConfig/EssentialsX/Teleportation";
@@ -343,10 +374,10 @@ namespace EssentialsX.Modules.Teleport
                 var json = File.ReadAllText(path, Encoding.UTF8);
                 var cfg = JsonSerializer.Deserialize<SpawnConfig>(json) ?? new SpawnConfig();
                 cfg.Messages ??= new SpawnMessages();
-                cfg.BypassRoles ??= new List<string>();
-                cfg.SetSpawnAllowedRoles ??= new List<string>();
-                cfg.BypassPlayers ??= new List<string>();   
-                cfg.SetSpawnAllowedPlayers ??= new List<string>(); 
+                cfg.BypassRoles ??= [];
+                cfg.SetSpawnAllowedRoles ??= [];
+                cfg.BypassPlayers ??= [];   
+                cfg.SetSpawnAllowedPlayers ??= []; 
                 return cfg;
             }
             catch
@@ -393,5 +424,6 @@ namespace EssentialsX.Modules.Teleport
         public string TeleportFailed { get; set; } = "<font color='#FF8080'>Teleport failed.</font>";
         public string SetspawnSuccess { get; set; } = "<font color='#00FF80'>Server spawn updated.</font>";
         public string SetspawnFailed { get; set; } = "<font color='#FF8080'>Failed to update server spawn.</font>";
+        public string AlreadyTeleporting { get; set; } = "<font color='#C91212'>You already have a /spawn teleport in progress.</font>";
     }
 }
