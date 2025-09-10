@@ -13,11 +13,11 @@ namespace EssentialsX.Modules.Teleport
         private readonly ICoreServerAPI sapi;
         private BackConfig cfg = null!;
 
-        private readonly Dictionary<string, BlockPos> lastDeath = new();
-        private readonly Dictionary<string, long> nextUseTimestampMs = new();
-        private readonly Dictionary<string, long> warmupCallback = new();
-        private readonly Dictionary<string, long> movePollListener = new();
-        private readonly HashSet<string> canceledWarmup = new();
+        private readonly Dictionary<string, BlockPos> lastDeath = [];
+        private readonly Dictionary<string, long> nextUseTimestampMs = [];
+        private readonly Dictionary<string, long> warmupCallback = [];
+        private readonly Dictionary<string, long> movePollListener = [];
+        private readonly HashSet<string> canceledWarmup = [];
 
         public BackCommands(ICoreServerAPI sapi)
         {
@@ -66,6 +66,21 @@ namespace EssentialsX.Modules.Teleport
                         .Replace("{z}", pos.Z.ToString()));
                 }
             };
+            sapi.Event.PlayerLeave += (IServerPlayer p) =>
+            {
+                var uid = p.PlayerUID;
+                canceledWarmup.Remove(uid);
+                if (movePollListener.TryGetValue(uid, out var pid))
+                {
+                    sapi.World.UnregisterGameTickListener(pid);
+                    movePollListener.Remove(uid);
+                }
+                if (warmupCallback.TryGetValue(uid, out var cbid))
+                {
+                    sapi.World.UnregisterCallback(cbid);
+                    warmupCallback.Remove(uid);
+                }
+            };
         }
 
         private TextCommandResult OnBack(TextCommandCallingArgs args)
@@ -73,7 +88,12 @@ namespace EssentialsX.Modules.Teleport
             var caller = args.Caller.Player as IServerPlayer;
             if (caller == null) return TextCommandResult.Error(cfg.Messages.PlayerOnly);
 
-            // Death-only target
+            if (warmupCallback.ContainsKey(caller.PlayerUID) || movePollListener.ContainsKey(caller.PlayerUID))
+            {
+                Send(caller, cfg.Messages.AlreadyTeleporting);
+                return TextCommandResult.Success();
+            }
+
             if (!lastDeath.TryGetValue(caller.PlayerUID, out var death) || death == null)
             {
                 Send(caller, cfg.Messages.NoLocationSaved);
@@ -81,7 +101,6 @@ namespace EssentialsX.Modules.Teleport
             }
             BlockPos? target = death;
 
-            // Cooldown
             bool bypass = HasPermission(caller, cfg.BypassRoles, cfg.BypassPlayers);
             if (!bypass && cfg.CooldownSeconds > 0)
             {
@@ -94,7 +113,6 @@ namespace EssentialsX.Modules.Teleport
                 }
             }
 
-            // Warmup
             var warmup = bypass ? 0 : Math.Max(0, cfg.WarmupSeconds);
             if (warmup <= 0)
             {
@@ -184,10 +202,8 @@ namespace EssentialsX.Modules.Teleport
 
             try
             {
-                // preload chunk column
                 sapi.WorldManager.LoadChunkColumnPriority(target.X / GlobalConstants.ChunkSize, target.Z / GlobalConstants.ChunkSize);
 
-                // optional safe-ground
                 BlockPos final = target;
                 if (cfg.UseSafeTeleport)
                 {
@@ -264,7 +280,7 @@ namespace EssentialsX.Modules.Teleport
         }
     }
 
-    // === Config ===
+    //Config
     public class BackConfig
     {
         public bool Enabled { get; set; } = true;
@@ -276,8 +292,8 @@ namespace EssentialsX.Modules.Teleport
         public bool CancelOnDamage { get; set; } = true;
         public bool UseSafeTeleport { get; set; } = true;
 
-        public List<string> BypassRoles { get; set; } = new() { "admin", "sumod", "crmod" };
-        public List<string> BypassPlayers { get; set; } = new() { "Notch" };
+        public List<string> BypassRoles { get; set; } = ["admin", "sumod", "crmod"];
+        public List<string> BypassPlayers { get; set; } = ["Notch"];
 
         public BackMessages Messages { get; set; } = new BackMessages();
 
@@ -300,10 +316,9 @@ namespace EssentialsX.Modules.Teleport
                 var json = File.ReadAllText(path, Encoding.UTF8);
                 var cfg = JsonSerializer.Deserialize<BackConfig>(json) ?? new BackConfig();
 
-                // null-fixes for new fields
                 cfg.Messages ??= new BackMessages();
-                cfg.BypassRoles ??= new List<string>();
-                cfg.BypassPlayers ??= new List<string>();
+                cfg.BypassRoles ??= [];
+                cfg.BypassPlayers ??= [];
 
                 return cfg;
             }
@@ -338,6 +353,6 @@ namespace EssentialsX.Modules.Teleport
         public string DeathSaved { get; set; } = "<font color='#00FF80'>Death point saved at {x}, {y}, {z}.</font>";
         public string WarmupCancelDamage { get; set; } = "<font color='#FF0000'>Teleport canceled, you took damage!</font>";
         public string TeleportFailed { get; set; } = "<font color='#FF8080'>Teleport failed.</font>";
-
+        public string AlreadyTeleporting { get; set; } = "<font color='#C91212'>You already have a /back teleport in progress.</font>";
     }
 }
