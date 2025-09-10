@@ -137,7 +137,6 @@ namespace EssentialsX.Modules.Teleport
             }
 
             var startXyz = ent.ServerPos.XYZ.Clone();
-            float lastHp = ent.WatchedAttributes?.GetFloat("health", 20f) ?? 20f;
 
             Send(caller, cfg.Messages.WarmupBegin.Replace("{warmup}", warmupSeconds.ToString()));
 
@@ -151,19 +150,6 @@ namespace EssentialsX.Modules.Teleport
                     canceledWarmup.Add(uid);
                     Send(caller, cfg.Messages.WarmupCanceled);
                 }
-
-                if (cfg.CancelOnDamage)
-                {
-                    float curHp = ent.WatchedAttributes?.GetFloat("health", lastHp) ?? lastHp;
-                    if (curHp < lastHp - 0.01f)
-                    {
-                        CancelWarmup(uid);
-                        canceledWarmup.Add(uid);
-                        Send(caller, cfg.Messages.WarmupCancelDamage);
-                    }
-                    lastHp = curHp;
-                }
-
             }, 100);
             movePollListener[uid] = pollId;
 
@@ -286,10 +272,7 @@ namespace EssentialsX.Modules.Teleport
         public bool Enabled { get; set; } = true;
         public int WarmupSeconds { get; set; } = 5;
         public int CooldownSeconds { get; set; } = 600;
-
-        // NEW toggles
         public bool CancelOnMove { get; set; } = true;
-        public bool CancelOnDamage { get; set; } = true;
         public bool UseSafeTeleport { get; set; } = true;
 
         public List<string> BypassRoles { get; set; } = ["admin", "sumod", "crmod"];
@@ -351,7 +334,6 @@ namespace EssentialsX.Modules.Teleport
         public string CooldownActive { get; set; } = "<font color='#FF0000'>You must wait {seconds}s before using /back again.</font>";
         public string Teleported { get; set; } = "<font color='#00FF80'>Teleported back to {x}, {y}, {z}.</font>";
         public string DeathSaved { get; set; } = "<font color='#00FF80'>Death point saved at {x}, {y}, {z}.</font>";
-        public string WarmupCancelDamage { get; set; } = "<font color='#FF0000'>Teleport canceled, you took damage!</font>";
         public string TeleportFailed { get; set; } = "<font color='#FF8080'>Teleport failed.</font>";
         public string AlreadyTeleporting { get; set; } = "<font color='#C91212'>You already have a /back teleport in progress.</font>";
     }

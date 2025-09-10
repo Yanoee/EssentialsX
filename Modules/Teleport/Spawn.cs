@@ -104,18 +104,21 @@ namespace EssentialsX.Modules.Teleport
                     return TextCommandResult.Success();
                 }
             }
+
             BlockPos? target = ResolveSpawnTarget();
             if (target == null)
             {
                 Send(caller, cfg.Messages.TeleportFailed);
                 return TextCommandResult.Success();
             }
+
             var warmup = bypass ? 0 : Math.Max(0, cfg.WarmupSeconds);
             if (warmup <= 0)
             {
                 DoTeleport(caller, target, applyCooldown: !bypass);
                 return TextCommandResult.Success();
             }
+
             BeginWarmup(caller, target, warmup);
             return TextCommandResult.Success();
         }
@@ -169,7 +172,6 @@ namespace EssentialsX.Modules.Teleport
         }
 
         // Warmup 
-
         private void BeginWarmup(IServerPlayer caller, BlockPos? target, int warmupSeconds)
         {
             var uid = caller.PlayerUID;
@@ -183,7 +185,6 @@ namespace EssentialsX.Modules.Teleport
             }
 
             var startXyz = ent.ServerPos.XYZ.Clone();
-            float lastHp = ent.WatchedAttributes?.GetFloat("health", 20f) ?? 20f;
 
             Send(caller, cfg.Messages.WarmupStart.Replace("{seconds}", warmupSeconds.ToString()));
 
@@ -197,19 +198,6 @@ namespace EssentialsX.Modules.Teleport
                     canceledWarmup.Add(uid);
                     Send(caller, cfg.Messages.WarmupCancelMove);
                 }
-
-                if (cfg.CancelOnDamage)
-                {
-                    float curHp = ent.WatchedAttributes?.GetFloat("health", lastHp) ?? lastHp;
-                    if (curHp < lastHp - 0.01f)
-                    {
-                        CancelWarmup(uid);
-                        canceledWarmup.Add(uid);
-                        Send(caller, cfg.Messages.WarmupCancelDamage);
-                    }
-                    lastHp = curHp;
-                }
-
             }, 100);
             movePollListener[uid] = pollId;
 
@@ -238,8 +226,7 @@ namespace EssentialsX.Modules.Teleport
             }
         }
 
-        // Teleport  Helpers 
-
+        // Teleport Helpers 
         private void DoTeleport(IServerPlayer player, BlockPos? target, bool applyCooldown)
         {
             if (target == null)
@@ -337,14 +324,12 @@ namespace EssentialsX.Modules.Teleport
     }
 
     // Config
-
     public class SpawnConfig
     {
         public bool Enabled { get; set; } = true;
         public int WarmupSeconds { get; set; } = 10;
         public int CooldownSeconds { get; set; } = 120;
         public bool CancelOnMove { get; set; } = true;
-        public bool CancelOnDamage { get; set; } = true;
         public bool UseSafeTeleport { get; set; } = true;
         public bool HasCustomSpawn { get; set; } = false;
         public SpawnPosition? SpawnPosition { get; set; } = null;
@@ -376,8 +361,8 @@ namespace EssentialsX.Modules.Teleport
                 cfg.Messages ??= new SpawnMessages();
                 cfg.BypassRoles ??= [];
                 cfg.SetSpawnAllowedRoles ??= [];
-                cfg.BypassPlayers ??= [];   
-                cfg.SetSpawnAllowedPlayers ??= []; 
+                cfg.BypassPlayers ??= [];
+                cfg.SetSpawnAllowedPlayers ??= [];
                 return cfg;
             }
             catch
@@ -418,7 +403,6 @@ namespace EssentialsX.Modules.Teleport
         public string NoPermissionSetspawn { get; set; } = "<font color='#FF8080'>You don't have permission to use /setspawn.</font>";
         public string WarmupStart { get; set; } = "<font color='#EED053'>Teleporting in {seconds}s. Don't move!</font>";
         public string WarmupCancelMove { get; set; } = "<font color='#FF8080'>Teleport to </font><font color='#00FF80'> Spawn</font> <font color='#FF8080'>cancelled, you moved.</font>";
-        public string WarmupCancelDamage { get; set; } = "<font color='#FF8080'>Teleport to </font><font color='#00FF80'> Spawn</font> <font color='#FF8080'>cancelled, you took damage.</font>";
         public string CooldownActive { get; set; } = "<font color='#FFA0A0'>You must wait {seconds}s before using /spawn again.</font>";
         public string TeleportSuccess { get; set; } = "<font color='#00FF80'>Teleported to spawn.</font>";
         public string TeleportFailed { get; set; } = "<font color='#FF8080'>Teleport failed.</font>";
