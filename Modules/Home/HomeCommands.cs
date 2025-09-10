@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -8,278 +9,464 @@ namespace EssentialsX.Modules.Home
     public class HomeCommands
     {
         private readonly ICoreServerAPI sapi;
-        private readonly HomeSettings settings;
-        private readonly HomeMessages messages;
+        private HomeConfig cfg = null!;
         private readonly HomesStore store;
-        private readonly Dictionary<string, long> nextUseTs = new();
-        private readonly Dictionary<string, long> warmupCbIds = new();
-        private readonly Dictionary<string, long> movePollIds = new();
+        private readonly Dictionary<string, long> nextUseTs = [];
+        private readonly Dictionary<string, long> warmupCb = [];
+        private readonly Dictionary<string, long> movePollCb = [];
+        private readonly HashSet<string> canceledWarmup = [];
+        private readonly Dictionary<string, long> lastDamageMs = [];
 
-        private const string ModuleName = "Home";
-
-        public HomeCommands(ICoreServerAPI sapi, HomeSettings? homeSettings, HomeMessages? homeMessages)
+        public HomeCommands(ICoreServerAPI sapi)
         {
             this.sapi = sapi;
             try
             {
-                settings = homeSettings ?? HomeSettings.LoadOrCreate(sapi);
-                messages = homeMessages ?? HomeMessages.LoadOrCreate(sapi);
+                cfg = HomeConfig.LoadOrCreate(sapi);
             }
             catch (Exception ex)
             {
+                cfg = new HomeConfig();
                 sapi.World.Logger.Error("[EssentialsX] Failed to init Homes module: {0}", ex);
-                settings = new HomeSettings();
-                messages = new HomeMessages();
             }
 
             store = new HomesStore(sapi);
         }
 
-        // Registration
         public void Register()
         {
-            sapi.World.Logger.Event("[EssentialsX] Loaded module: {0}", ModuleName);
-
-            if (settings?.Enabled == true)
+            if (cfg == null)
             {
-                var nameOpt = new WordArgParser("name", false, null); // (I dont even know what does keep or remove????)
-                //var nameOpt = TextCommandParsers.OptionalWord("name");  // use this maybe??
-
-                sapi.ChatCommands.Create("sethome")
-                    .RequiresPlayer().RequiresPrivilege("chat")
-                    .WithDescription(messages.Descriptions.sethome)
-                    .WithArgs(nameOpt)
-                    .HandleWith(SetHome);
-
-                sapi.ChatCommands.Create("delhome")
-                    .RequiresPlayer().RequiresPrivilege("chat")
-                    .WithDescription(messages.Descriptions.delhome)
-                    .WithArgs(nameOpt)
-                    .HandleWith(DelHome);
-
-                sapi.ChatCommands.Create("home")
-                    .RequiresPlayer().RequiresPrivilege("chat")
-                    .WithDescription(messages.Descriptions.home)
-                    .WithArgs(nameOpt)
-                    .HandleWith(Home);
-
-                sapi.ChatCommands.Create("homes")
-                    .RequiresPlayer().RequiresPrivilege("chat")
-                    .WithDescription(messages.Descriptions.homes)
-                    .HandleWith(ListHomes);
+                sapi.World.Logger.Error("[EssentialsX] Homes config not initialized.");
+                return;
             }
-            else
+            if (!cfg.Enabled)
             {
-                sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: {0}", ModuleName);
+                sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: Homes");
+                return;
             }
+
+            sapi.ChatCommands.Create("sethome")
+                .WithDescription(cfg.Messages.DescSetHome)
+                .RequiresPlayer().RequiresPrivilege("chat")
+                .WithArgs(new StringArgParser("name", false))
+                .HandleWith(SetHome);
+
+            sapi.ChatCommands.Create("delhome")
+                .WithDescription(cfg.Messages.DescDelHome)
+                .RequiresPlayer().RequiresPrivilege("chat")
+                .WithArgs(new StringArgParser("name", false))
+                .HandleWith(DelHome);
+
+            sapi.ChatCommands.Create("home")
+                .WithDescription(cfg.Messages.DescHome)
+                .RequiresPlayer().RequiresPrivilege("chat")
+                .WithArgs(new StringArgParser("name", false))
+                .HandleWith(Home);
+
+            sapi.ChatCommands.Create("homes")
+                .WithDescription(cfg.Messages.DescHomes)
+                .RequiresPlayer().RequiresPrivilege("chat")
+                .HandleWith(ListHomes);
+
+            sapi.World.Logger.Event("[EssentialsX] Loaded module: Homes");
+
+            sapi.Event.PlayerLeave += (IServerPlayer p) =>
+            {
+                var uid = p.PlayerUID;
+
+                if (movePollCb.TryGetValue(uid, out var pid))
+                {
+                    sapi.World.UnregisterGameTickListener(pid);
+                    movePollCb.Remove(uid);
+                }
+                if (warmupCb.TryGetValue(uid, out var cb))
+                {
+                    sapi.World.UnregisterCallback(cb);
+                    warmupCb.Remove(uid);
+                }
+                canceledWarmup.Remove(uid);
+            };
         }
 
-
-        // Handlers 
+        //Commands
         private TextCommandResult SetHome(TextCommandCallingArgs args)
         {
-            var player = (IServerPlayer)args.Caller.Player;
+            var player = args.Caller.Player as IServerPlayer;
+            if (player == null) return TextCommandResult.Error(cfg.Messages.PlayerOnly);
+
+            if (cfg.CombatTagBlocksSetHome && IsCombatTagged(player, cfg.DenyIfCombatTaggedSeconds))
+            {
+                Send(player, cfg.Messages.CombatTaggedSetBlocked.Replace("{seconds}", cfg.DenyIfCombatTaggedSeconds.ToString()));
+                return TextCommandResult.Success();
+            }
+
+            string? raw = GetWordArg(args);
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                Send(player, cfg.Messages.UsageSetHome);
+                return TextCommandResult.Success();
+            }
+
+            string name = NormalizeName(raw);
+            if (name.Length > cfg.MaxNameLength)
+            {
+                Send(player, cfg.Messages.NameTooLong.Replace("{max}", cfg.MaxNameLength.ToString()));
+                return TextCommandResult.Success();
+            }
+            if (!Regex.IsMatch(name, cfg.AllowedCharsRegex))
+            {
+                Send(player, cfg.Messages.NameInvalid);
+                return TextCommandResult.Success();
+            }
+
             string uid = player.PlayerUID;
             string role = player.Role?.Code ?? "suplayer";
 
-            string? name = GetNameArg(args);
-            int limit = settings.GetMaxHomesForRole(role);
             var data = store.Load(uid);
+            int cap = GetLimit(uid, role);
+            bool exists = TryFindKey(data.Homes, name, out string? existingKey);
 
-            if (limit <= 0) { ChatMsg(player, messages.Home.NoPerm); return TextCommandResult.Success(); }
-            if (string.IsNullOrWhiteSpace(name)) { ChatMsg(player, messages.Home.UsageSetHome); return TextCommandResult.Success(); }
-            if (!data.Homes.ContainsKey(name) && data.Homes.Count >= limit)
-            { ChatMsg(player, messages.Home.LimitReached, ("count", limit.ToString())); return TextCommandResult.Success(); }
+            if (!exists && data.Homes.Count >= cap)
+            {
+                Send(player, cfg.Messages.LimitReached.Replace("{count}", cap.ToString()));
+                return TextCommandResult.Success();
+            }
+            if (exists)
+            {
+                Send(player, cfg.Messages.DuplicateName);
+                return TextCommandResult.Success();
+            }
+
+            if (cfg.NoSetHomeInAir && !OnSolidGround(player)) { Send(player, cfg.Messages.NoGround); return TextCommandResult.Success(); }
+            if (cfg.DenyIfInLiquid && InLiquid(player)) { Send(player, cfg.Messages.InLiquid); return TextCommandResult.Success(); }
 
             var ep = player.Entity.ServerPos;
-            var home = new HomePoint { X = ep.X, Y = ep.Y, Z = ep.Z, Yaw = ep.Yaw, Pitch = ep.Pitch };
+            var hp = new HomePoint { X = ep.X, Y = ep.Y, Z = ep.Z, Yaw = ep.Yaw, Pitch = ep.Pitch };
 
-            data.Homes[name] = home;
-            data.LastUsed = name;
+            string key = existingKey ?? name;
+            data.Homes[key] = hp;
+            data.LastUsed = key;
             store.Save(uid, data);
 
-            ChatMsg(player, messages.Home.Saved, ("name", name));
-            sapi.World.Logger.Audit("{0} {1} saved home '{2}' at {3:F1}/{4:F1}/{5:F1}",
-                messages, player.PlayerName, name, home.X, home.Y, home.Z);
+            Send(player, cfg.Messages.Saved.Replace("{name}", key));
+            sapi.World.Logger.Audit("[EssentialsX] {0} saved home '{1}' at {2:F1}/{3:F1}/{4:F1}", player.PlayerName, key, hp.X, hp.Y, hp.Z);
             return TextCommandResult.Success();
         }
 
         private TextCommandResult DelHome(TextCommandCallingArgs args)
         {
-            var player = (IServerPlayer)args.Caller.Player;
+            var player = args.Caller.Player as IServerPlayer;
+            if (player == null) return TextCommandResult.Error(cfg.Messages.PlayerOnly);
             string uid = player.PlayerUID;
 
-            string? name = GetNameArg(args);
-            if (string.IsNullOrWhiteSpace(name)) { ChatMsg(player, messages.Home.UsageDelHome); return TextCommandResult.Success(); }
+            string? raw = GetWordArg(args);
+            if (string.IsNullOrWhiteSpace(raw)) { Send(player, cfg.Messages.UsageDelHome); return TextCommandResult.Success(); }
 
+            string name = NormalizeName(raw);
             var data = store.Load(uid);
-            if (!data.Homes.Remove(name)) { ChatMsg(player, messages.Home.NoHome); return TextCommandResult.Success(); }
 
-            if (data.LastUsed == name) data.LastUsed = null;
+            if (!TryFindKey(data.Homes, name, out var existingKey) || existingKey == null)
+            {
+                Send(player, cfg.Messages.NoSuchHome);
+                return TextCommandResult.Success();
+            }
+
+            data.Homes.Remove(existingKey);
+            if (data.LastUsed == existingKey) data.LastUsed = null;
             store.Save(uid, data);
 
-            ChatMsg(player, messages.Home.Deleted, ("name", name));
+            Send(player, cfg.Messages.Deleted.Replace("{name}", existingKey));
             return TextCommandResult.Success();
         }
 
         private TextCommandResult ListHomes(TextCommandCallingArgs args)
         {
-            var player = (IServerPlayer)args.Caller.Player;
+            var player = args.Caller.Player as IServerPlayer;
+            if (player == null) return TextCommandResult.Error(cfg.Messages.PlayerOnly);
             string uid = player.PlayerUID;
+
             var data = store.Load(uid);
+            if (data.Homes.Count == 0) { Send(player, cfg.Messages.ListNone); return TextCommandResult.Success(); }
 
-            if (data.Homes.Count == 0) { ChatMsg(player, messages.Home.ListNone); return TextCommandResult.Success(); }
+            var names = new List<string>();
+            foreach (var key in data.Homes.Keys)
+            {
+                var disp = key;
+                names.Add($"<a href='command:///home {disp}'>{disp}</a>");
+            }
 
-            ChatMsg(player, messages.Home.ListSome,
-                ("count", data.Homes.Count.ToString()),
-                ("list", string.Join(", ", data.Homes.Keys)));
+            Send(player, cfg.Messages.ListSome
+                .Replace("{count}", data.Homes.Count.ToString())
+                .Replace("{list}", string.Join(", ", names)));
             return TextCommandResult.Success();
         }
 
         private TextCommandResult Home(TextCommandCallingArgs args)
         {
-            var player = (IServerPlayer)args.Caller.Player;
+            var player = args.Caller.Player as IServerPlayer;
+            if (player == null) return TextCommandResult.Error(cfg.Messages.PlayerOnly);
             string uid = player.PlayerUID;
 
-            string? requested = GetNameArg(args);
-
-            // cooldown gate
-            long nowMs = sapi.World.ElapsedMilliseconds;
-            if (nextUseTs.TryGetValue(uid, out long readyTs) && nowMs < readyTs)
+            if (warmupCb.ContainsKey(uid) || movePollCb.ContainsKey(uid))
             {
-                int left = (int)Math.Ceiling((readyTs - nowMs) / 1000.0);
-                ChatMsg(player, messages.Home.Cooldown, ("seconds", left.ToString()));
+                Send(player, cfg.Messages.AlreadyTeleporting);
+                return TextCommandResult.Success();
+            }
+
+            if (IsCombatTagged(player, cfg.DenyIfCombatTaggedSeconds))
+            {
+                Send(player, cfg.Messages.CombatTaggedUseBlocked.Replace("{seconds}", cfg.DenyIfCombatTaggedSeconds.ToString()));
+                return TextCommandResult.Success();
+            }
+
+            string? raw = GetWordArg(args);
+            string? requested = string.IsNullOrWhiteSpace(raw) ? null : NormalizeName(raw);
+
+            long now = sapi.World.ElapsedMilliseconds;
+            if (!PlayerBypasses(player) && nextUseTs.TryGetValue(uid, out var ready) && now < ready)
+            {
+                int left = (int)Math.Ceiling((ready - now) / 1000.0);
+                Send(player, cfg.Messages.Cooldown.Replace("{seconds}", left.ToString()));
                 return TextCommandResult.Success();
             }
 
             var data = store.Load(uid);
-            string? name = !string.IsNullOrWhiteSpace(requested) ? requested : data.LastUsed;
+            string? key = null;
 
-            if (string.IsNullOrWhiteSpace(name) || !data.Homes.TryGetValue(name, out var target))
+            if (!string.IsNullOrWhiteSpace(requested))
             {
-                ChatMsg(player, messages.Home.NoHome);
+                if (!TryFindKey(data.Homes, requested, out key) || key == null)
+                {
+                    Send(player, cfg.Messages.NoSuchHome);
+                    return TextCommandResult.Success();
+                }
+            }
+            else
+            {
+                key = data.LastUsed;
+                if (string.IsNullOrWhiteSpace(key) || !data.Homes.ContainsKey(key))
+                {
+                    Send(player, cfg.Messages.NoHome);
+                    return TextCommandResult.Success();
+                }
+            }
+
+            var target = data.Homes[key!];
+
+            bool bypass = PlayerBypasses(player);
+            int warm = bypass ? 0 : Math.Max(0, cfg.WarmupSeconds);
+
+            if (warm <= 0)
+            {
+                DoTeleport(player, key!, target, applyCooldown: !bypass);
+                data.LastUsed = key;
+                store.Save(uid, data);
                 return TextCommandResult.Success();
             }
 
-            // warmup (with move + damage cancel via simple polling)
-            double warmup = Math.Max(0, settings.WarmupSeconds);
-            if (warmup <= 0) { Teleport(player, target, name); return TextCommandResult.Success(); }
+            Send(player, cfg.Messages.Begin.Replace("{name}", key!).Replace("{seconds}", warm.ToString()));
 
-            // cancel any prior warmup
-            if (warmupCbIds.TryGetValue(uid, out long existingCb)) { sapi.Event.UnregisterCallback(existingCb); warmupCbIds.Remove(uid); }
-            if (movePollIds.TryGetValue(uid, out long existingPoll)) { sapi.Event.UnregisterGameTickListener(existingPoll); movePollIds.Remove(uid); }
+            var ent = player.Entity;
+            if (ent == null) { return TextCommandResult.Success(); }
 
-            var startPos = player.Entity.ServerPos.XYZ.Clone();
-            float startHp = GetHealth(player.Entity);
-            ChatMsg(player, messages.Home.Teleporting, ("name", name), ("seconds", settings.WarmupSeconds.ToString()));
+            var startPos = ent.ServerPos.XYZ.Clone();
+            float lastHp = GetHealth(ent);
 
-            long pollId = sapi.Event.RegisterGameTickListener((dt) =>
+            long pollId = sapi.World.RegisterGameTickListener(_ =>
             {
-                var nowPos = player.Entity.ServerPos.XYZ;
-                if (nowPos.DistanceTo(startPos) > 0.05f)
+                var pos = ent.ServerPos.XYZ;
+
+                if (cfg.CancelOnMove && pos.DistanceTo(startPos) > 0.05f)
                 {
-                    CancelWarmup(player, messages.Home.CancelMove);
+                    CancelWarmup(uid);
+                    Send(player, cfg.Messages.Moved);
                     return;
                 }
-                if (GetHealth(player.Entity) < startHp - 0.001f)
+
+                if (cfg.CancelOnDamage)
                 {
-                    CancelWarmup(player, messages.Home.CancelDamage);
-                    return;
+                    float hp = GetHealth(ent);
+                    if (hp < lastHp - 0.01f)
+                    {
+                        lastDamageMs[uid] = sapi.World.ElapsedMilliseconds;
+
+                        CancelWarmup(uid);
+                        Send(player, cfg.Messages.DamageCancel);
+                        return;
+                    }
+                    lastHp = hp;
                 }
-            }, 50);
-            movePollIds[uid] = pollId;
+            }, 100);
+            movePollCb[uid] = pollId;
 
-            long cbId = sapi.Event.RegisterCallback((ms) =>
+            long cbId = sapi.World.RegisterCallback(_ =>
             {
-                if (movePollIds.TryGetValue(uid, out long pid)) sapi.Event.UnregisterGameTickListener(pid);
-                movePollIds.Remove(uid);
-                warmupCbIds.Remove(uid);
+                if (canceledWarmup.Remove(uid)) return;
 
-                var nowPos2 = player.Entity.ServerPos.XYZ;
-                if (nowPos2.DistanceTo(startPos) > 0.05f) { ChatMsg(player, messages.Home.CancelMove); return; }
-                if (GetHealth(player.Entity) < startHp - 0.001f) { ChatMsg(player, messages.Home.CancelDamage); return; }
+                if (movePollCb.TryGetValue(uid, out var pid))
+                {
+                    sapi.World.UnregisterGameTickListener(pid);
+                    movePollCb.Remove(uid);
+                }
+                warmupCb.Remove(uid);
 
-                Teleport(player, target, name);
-            }, (int)(settings.WarmupSeconds * 1000));
-            warmupCbIds[uid] = cbId;
+                DoTeleport(player, key!, target, applyCooldown: !bypass);
+
+                data.LastUsed = key;
+                store.Save(uid, data);
+
+            }, warm * 1000);
+            warmupCb[uid] = cbId;
 
             return TextCommandResult.Success();
         }
 
-        // Helpers
-        private static float GetHealth(Entity entity)
-        {
-            return entity.WatchedAttributes.GetFloat("health", 20f);
-        }
-
-        private void Teleport(IServerPlayer player, HomePoint target, string name)
-        {
-            nextUseTs[player.PlayerUID] = sapi.World.ElapsedMilliseconds + (long)(settings.CooldownSeconds * 1000);
-
-            var tp = new EntityPos(target.X, target.Y, target.Z) { Yaw = target.Yaw, Pitch = target.Pitch };
-            player.Entity.TeleportTo(tp);
-
-            ChatMsg(player, messages.Home.Teleported, ("name", name));
-            sapi.World.Logger.Audit("{0} {1} teleported to home '{2}' at {3:F1}/{4:F1}/{5:F1}",
-                messages, player.PlayerName, name, target.X, target.Y, target.Z);
-        }
-
-        private void ChatMsg(IServerPlayer player, string template, params (string key, string value)[] vars)
-        {
-            string msg = template ?? "";
-            if (vars != null)
-            {
-                foreach (var (key, value) in vars)
-                {
-                    if (key != null) msg = msg.Replace("{" + key + "}", Esc(value));
-                }
-            }
-            player.SendMessage(GlobalConstants.GeneralChatGroup,
-                $"{messages.HomeHeader}\n{messages.HomePrefix}: {msg}\n{messages.HomeFooter}",
-                EnumChatType.Notification);
-        }
-        private static string Esc(string? s) =>
-            (s ?? "").Replace("<", "&lt;").Replace(">", "&gt;");
-
-
-        private void CancelWarmup(IServerPlayer player, string reasonTemplate)
-        {
-            string uid = player.PlayerUID;
-
-            if (movePollIds.TryGetValue(uid, out long pid))
-            {
-                sapi.Event.UnregisterGameTickListener(pid);
-                movePollIds.Remove(uid);
-            }
-            if (warmupCbIds.TryGetValue(uid, out long cbid))
-            {
-                sapi.Event.UnregisterCallback(cbid);
-                warmupCbIds.Remove(uid);
-            }
-
-            ChatMsg(player, reasonTemplate);
-        }
-
-        // Robust arg getter: supports quoted names and single word
-        private static string? GetNameArg(TextCommandCallingArgs args)
+        //Internals
+        private void DoTeleport(IServerPlayer player, string homeName, HomePoint target, bool applyCooldown)
         {
             try
             {
-                var v = args[0];
-                if (v != null)
-                {
-                    var s = v as string ?? v.ToString();
-                    if (!string.IsNullOrWhiteSpace(s)) return s;
-                }
-            }
-            catch { /* ignore */ }
+                sapi.WorldManager.LoadChunkColumnPriority(
+                    (int)(target.X / GlobalConstants.ChunkSize),
+                    (int)(target.Z / GlobalConstants.ChunkSize)
+                );
 
-            try
-            {
-                var w = args.RawArgs.PopWord();
-                return string.IsNullOrWhiteSpace(w) ? null : w;
+                player.Entity?.TeleportToDouble(target.X, target.Y, target.Z);
+
+                var ent = player.Entity;
+                if (ent != null)
+                {
+                    ent.ServerPos.Yaw = target.Yaw;
+                    ent.ServerPos.Pitch = target.Pitch;
+                }
+
+                if (applyCooldown && cfg.CooldownSeconds > 0)
+                {
+                    nextUseTs[player.PlayerUID] = sapi.World.ElapsedMilliseconds + (long)cfg.CooldownSeconds * 1000;
+                }
+
+                Send(player, cfg.Messages.Teleported.Replace("{name}", homeName));
             }
-            catch { return null; }
+            catch { }
+        }
+
+        private void CancelWarmup(string uid)
+        {
+            if (movePollCb.TryGetValue(uid, out var pid))
+            {
+                sapi.World.UnregisterGameTickListener(pid);
+                movePollCb.Remove(uid);
+            }
+            if (warmupCb.TryGetValue(uid, out var cb))
+            {
+                sapi.World.UnregisterCallback(cb);
+                warmupCb.Remove(uid);
+            }
+            canceledWarmup.Add(uid);
+        }
+
+        private bool PlayerBypasses(IServerPlayer p)
+        {
+            if (cfg.BypassPlayers != null)
+                foreach (var n in cfg.BypassPlayers)
+                    if (p.PlayerName.Equals(n, StringComparison.OrdinalIgnoreCase))
+                        return true;
+
+            if (cfg.BypassRoles != null)
+            {
+                var role = p.Role?.Code ?? "";
+                foreach (var r in cfg.BypassRoles)
+                    if (role.Equals(r, StringComparison.OrdinalIgnoreCase))
+                        return true;
+            }
+            return false;
+        }
+
+        private static float GetHealth(Entity ent) =>
+            ent?.WatchedAttributes?.GetFloat("health", 20f) ?? 20f;
+
+        private int GetLimit(string uid, string role)
+        {
+            if (cfg.PlayerOverrides.TryGetValue(uid, out int ovByUid))
+                return ovByUid;
+
+            foreach (var kv in cfg.PlayerOverrides)
+            {
+                if (string.Equals(kv.Key, uid, StringComparison.OrdinalIgnoreCase))
+                    return kv.Value;
+            }
+
+            return cfg.GetMaxHomesForRole(role);
+        }
+
+        private string NormalizeName(string raw)
+        {
+            string s = cfg.TrimNames ? raw.Trim() : raw;
+            if ((s.StartsWith("\"") && s.EndsWith("\"")) || (s.StartsWith("'") && s.EndsWith("'")))
+                s = s.Substring(1, s.Length - 2);
+            if (cfg.CaseInsensitiveNames) s = s.ToLowerInvariant();
+            return s;
+        }
+
+        private bool TryFindKey(Dictionary<string, HomePoint> dict, string normalized, out string? existingKey)
+        {
+            if (!cfg.CaseInsensitiveNames)
+            {
+                existingKey = dict.ContainsKey(normalized) ? normalized : null;
+                return existingKey != null;
+            }
+
+            foreach (var k in dict.Keys)
+                if (string.Equals(k, normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    existingKey = k;
+                    return true;
+                }
+            existingKey = null;
+            return false;
+        }
+
+        private static string? GetWordArg(TextCommandCallingArgs args)
+        {
+            return args.Parsers.
+                FirstOrDefault()?
+                .GetValue()?
+                .ToString();
+        }
+
+        //environment checks
+        private bool OnSolidGround(IServerPlayer p)
+        {
+            var pos = p.Entity.ServerPos.AsBlockPos;
+            var below = pos.DownCopy();
+            var block = sapi.World.BlockAccessor.GetBlock(below);
+            return block != null && block.BlockId != 0;
+        }
+
+        private bool InLiquid(IServerPlayer p)
+        {
+            var pos = p.Entity.ServerPos.AsBlockPos;
+            var block = sapi.World.BlockAccessor.GetBlock(pos);
+            var code = block?.Code?.Path ?? "";
+            return !string.IsNullOrEmpty(code) &&
+                   (code.Contains("water", StringComparison.OrdinalIgnoreCase) ||
+                    code.Contains("lava", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private bool IsCombatTagged(IServerPlayer p, int seconds)
+        {
+            if (seconds <= 0 || p == null) return false;
+            var uid = p.PlayerUID;
+            if (!lastDamageMs.TryGetValue(uid, out var lastMs)) return false;
+            long now = sapi.World.ElapsedMilliseconds;
+            return (now - lastMs) < seconds * 1000L;
+        }
+
+        private void Send(IServerPlayer p, string body)
+        {
+            var wrapped = $"{cfg.Messages.HomePrefix}: {body}";
+            sapi.SendMessage(p, 0, wrapped, EnumChatType.CommandSuccess);
         }
     }
 }

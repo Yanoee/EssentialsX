@@ -15,9 +15,10 @@ namespace EssentialsX.Modules.Home
 
     public class PlayerHomes
     {
-        public Dictionary<string, HomePoint> Homes { get; set; } = new();
+        public Dictionary<string, HomePoint> Homes { get; set; } = [];
         public string? LastUsed { get; set; }
     }
+
     public class HomesStore
     {
         private readonly ICoreServerAPI sapi;
@@ -32,7 +33,8 @@ namespace EssentialsX.Modules.Home
         public HomesStore(ICoreServerAPI sapi)
         {
             this.sapi = sapi;
-            dir = Path.Combine(sapi.GetOrCreateDataPath("ModData"), "EssentialsX", "playerdata");
+            // NOTE: per your request, move to ModData/EssentialsX/Data
+            dir = Path.Combine(sapi.GetOrCreateDataPath("ModData"), "EssentialsX", "Data");
             Directory.CreateDirectory(dir);
         }
 
