@@ -23,19 +23,16 @@
         public string TeleportFailed { get; set; } = "<font color='#FF8080'>Teleport failed.</font>";
         public string AlreadyTeleporting { get; set; } = "<font color='#C91212'>You already have a TPR teleport in progress.</font>";
 
-
         // Sent/receive
         public string SentSender { get; set; } = "<font color='#4CE0BB'>You asked {playername} to teleport to you.</font>";
         public string SentReceiver { get; set; } = "<font color='#4CE0BB'>You have received a teleport-to-you request from {playername}.</font>";
         public string ClickableReceiver { get; set; } = "<a href='command:///tpraccept'>[ACCEPT]</a>   <a href='command:///tprdeny'>[DENY]</a>";
 
-        // Warmup begin / movement & damage cancels
+        // Warmup begin / movement cancels
         public string BeginSender { get; set; } = "<font color='#4CE0E0'>{playername} is teleporting to you in {warmup}s. Do not move!</font>";
         public string BeginReceiver { get; set; } = "<font color='#4CE0E0'>You will be teleported to {playername} in {warmup}s.</font>";
         public string MovedSender { get; set; } = "<font color='#C91212'>You moved; teleportation canceled.</font>";
         public string MovedReceiver { get; set; } = "<font color='#C91212'>{playername} moved; teleportation canceled.</font>";
-        public string DamageCancelSender { get; set; } = "<font color='#C91212'>You took damage; teleportation canceled.</font>";
-        public string DamageCancelReceiver { get; set; } = "<font color='#C91212'>{playername} took damage; teleportation canceled.</font>";
 
         // Deny / cancel / success
         public string DeniedSender { get; set; } = "<font color='#E04C4C'>{playername} denied your TPR request.</font>";

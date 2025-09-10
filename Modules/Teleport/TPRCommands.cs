@@ -8,6 +8,7 @@ namespace EssentialsX.Modules.Teleport
     {
         private readonly ICoreServerAPI sapi;
         private TprConfig cfg = null!;
+
         private readonly Dictionary<string, long> nextUseTs = [];              // uid -> unix ms
         private readonly Dictionary<string, PendingRequest> pending = [];      // receiverUid -> request
         private readonly Dictionary<string, string> activeWarmupBySender = []; // senderUid -> receiverUid
@@ -49,33 +50,25 @@ namespace EssentialsX.Modules.Teleport
                 return;
             }
 
-            sapi.ChatCommands
-                .Create("tpr")
+            sapi.ChatCommands.Create("tpr")
                 .WithDescription(cfg.Messages.DescTpr)
-                .RequiresPlayer()
-                .RequiresPrivilege("chat")
+                .RequiresPlayer().RequiresPrivilege("chat")
                 .WithArgs(new StringArgParser("player", false))
                 .HandleWith(OnTpr);
 
-            sapi.ChatCommands
-                .Create("tpraccept")
+            sapi.ChatCommands.Create("tpraccept")
                 .WithDescription(cfg.Messages.DescTpAccept)
-                .RequiresPlayer()
-                .RequiresPrivilege("chat")
+                .RequiresPlayer().RequiresPrivilege("chat")
                 .HandleWith(OnTpAccept);
 
-            sapi.ChatCommands
-                .Create("tprdeny")
+            sapi.ChatCommands.Create("tprdeny")
                 .WithDescription(cfg.Messages.DescTpDeny)
-                .RequiresPlayer()
-                .RequiresPrivilege("chat")
+                .RequiresPlayer().RequiresPrivilege("chat")
                 .HandleWith(OnTpDeny);
 
-            sapi.ChatCommands
-                .Create("tprcancel")
+            sapi.ChatCommands.Create("tprcancel")
                 .WithDescription(cfg.Messages.DescTpCancel)
-                .RequiresPlayer()
-                .RequiresPrivilege("chat")
+                .RequiresPlayer().RequiresPrivilege("chat")
                 .HandleWith(OnTpCancel);
 
             sapi.World.Logger.Event("[EssentialsX] Loaded module: TPR");
@@ -106,7 +99,12 @@ namespace EssentialsX.Modules.Teleport
             };
         }
 
-        //Commands
+        private bool IsSenderBusy(string senderUid)
+        {
+            return activeWarmupBySender.ContainsKey(senderUid)
+                   || warmupCb.ContainsKey(senderUid)
+                   || movePollCb.ContainsKey(senderUid);
+        }
 
         private TextCommandResult OnTpr(TextCommandCallingArgs args)
         {
@@ -121,6 +119,12 @@ namespace EssentialsX.Modules.Teleport
             {
                 var left = (int)Math.Ceiling((ready - nowMs) / 1000.0);
                 Send(caller, cfg.Messages.CooldownActive.Replace("{seconds}", left.ToString()));
+                return TextCommandResult.Success();
+            }
+
+            if (IsSenderBusy(caller.PlayerUID))
+            {
+                Send(caller, cfg.Messages.AlreadyTeleporting);
                 return TextCommandResult.Success();
             }
 
@@ -176,7 +180,6 @@ namespace EssentialsX.Modules.Teleport
 
             return TextCommandResult.Success();
         }
-
         private TextCommandResult OnTpAccept(TextCommandCallingArgs args)
         {
             var receiver = args.Caller.Player as IServerPlayer;
@@ -206,14 +209,15 @@ namespace EssentialsX.Modules.Teleport
                 return TextCommandResult.Success();
             }
 
-            if (warmupCb.ContainsKey(sender.PlayerUID)
-                || movePollCb.ContainsKey(sender.PlayerUID)
-                || activeWarmupBySender.ContainsKey(sender.PlayerUID))
+            // idempotent accept: if already busy, just no-op
+            if (IsSenderBusy(sender.PlayerUID))
             {
                 Send(sender, cfg.Messages.AlreadyTeleporting);
                 return TextCommandResult.Success();
             }
 
+            //claim busy FIRST (atomic), then remove pending
+            activeWarmupBySender[sender.PlayerUID] = receiver.PlayerUID;
             pending.Remove(receiver.PlayerUID);
 
             bool bypass = PlayerBypasses(sender);
@@ -225,20 +229,19 @@ namespace EssentialsX.Modules.Teleport
             if (warm <= 0)
             {
                 DoTeleport(sender, receiver, applyCooldown: !bypass);
+                activeWarmupBySender.Remove(sender.PlayerUID);
                 return TextCommandResult.Success();
             }
 
-            activeWarmupBySender[sender.PlayerUID] = receiver.PlayerUID;
-
-            var ent = sender.Entity;
+            var ent = receiver.Entity; // movement guard on the one who will move (receiver?)
             if (ent == null)
             {
                 Send(sender, cfg.Messages.TeleportFailed);
+                activeWarmupBySender.Remove(sender.PlayerUID);
                 return TextCommandResult.Success();
             }
 
             var startPos = ent.ServerPos.XYZ.Clone();
-            float lastHp = ent.WatchedAttributes?.GetFloat("health", 20f) ?? 20f;
 
             long pollId = sapi.World.RegisterGameTickListener(_ =>
             {
@@ -247,22 +250,9 @@ namespace EssentialsX.Modules.Teleport
                 if (cfg.CancelOnMove && pos.DistanceTo(startPos) > 0.05)
                 {
                     CancelWarmup(sender.PlayerUID);
-                    Send(sender, cfg.Messages.MovedSender);
-                    Send(receiver, cfg.Messages.MovedReceiver.Replace("{playername}", sender.PlayerName));
+                    Send(sender, cfg.Messages.MovedReceiver.Replace("{playername}", receiver.PlayerName));
+                    Send(receiver, cfg.Messages.MovedSender);
                     return;
-                }
-
-                if (cfg.CancelOnDamage)
-                {
-                    float curHp = ent.WatchedAttributes?.GetFloat("health", lastHp) ?? lastHp;
-                    if (curHp < lastHp - 0.01f)
-                    {
-                        CancelWarmup(sender.PlayerUID);
-                        Send(sender, cfg.Messages.DamageCancelSender);
-                        Send(receiver, cfg.Messages.DamageCancelReceiver.Replace("{playername}", sender.PlayerName));
-                        return;
-                    }
-                    lastHp = curHp;
                 }
             }, 100);
 
@@ -270,19 +260,26 @@ namespace EssentialsX.Modules.Teleport
 
             long cbId = sapi.World.RegisterCallback(_ =>
             {
-                if (canceledWarmup.Remove(req.SenderUid))
-                {
-                    activeWarmupBySender.Remove(req.SenderUid);
-                    return;
-                }
+                if (canceledWarmup.Remove(sender.PlayerUID)) return;
 
-                CancelWarmup(req.SenderUid);
-                DoTeleport(sender, receiver, applyCooldown: !bypass);
+                if (movePollCb.TryGetValue(sender.PlayerUID, out var pid))
+                {
+                    sapi.World.UnregisterGameTickListener(pid);
+                    movePollCb.Remove(sender.PlayerUID);
+                }
+                warmupCb.Remove(sender.PlayerUID);
+
+                var snd = PlayerByUid(req.SenderUid);
+                var rcv = PlayerByUid(req.ReceiverUid);
+                if (snd != null && rcv != null)
+                {
+                    DoTeleport(snd, rcv, applyCooldown: !bypass);
+                }
+                activeWarmupBySender.Remove(sender.PlayerUID);
 
             }, warm * 1000);
 
             warmupCb[sender.PlayerUID] = cbId;
-
             return TextCommandResult.Success();
         }
 
@@ -299,19 +296,14 @@ namespace EssentialsX.Modules.Teleport
                 return TextCommandResult.Success();
             }
 
-            var sender = PlayerByUid(req.SenderUid);
             pending.Remove(receiver.PlayerUID);
 
+            var sender = PlayerByUid(req.SenderUid);
             if (sender != null)
             {
                 Send(sender, cfg.Messages.DeniedSender.Replace("{playername}", receiver.PlayerName));
                 Send(receiver, cfg.Messages.DeniedReceiver.Replace("{playername}", sender.PlayerName));
             }
-            else
-            {
-                Send(receiver, cfg.Messages.NoPending);
-            }
-
             return TextCommandResult.Success();
         }
 
@@ -322,6 +314,7 @@ namespace EssentialsX.Modules.Teleport
 
             PurgeExpiredPending(sapi.World.ElapsedMilliseconds);
 
+            // Pending?
             string? targetUid = null;
             foreach (var kv in pending)
             {
@@ -349,6 +342,7 @@ namespace EssentialsX.Modules.Teleport
                     Send(receiver, cfg.Messages.CanceledReceiver.Replace("{playername}", caller.PlayerName));
                 }
             }
+
             CancelWarmup(caller.PlayerUID);
             canceledWarmup.Add(caller.PlayerUID);
             activeWarmupBySender.Remove(caller.PlayerUID);
@@ -383,12 +377,11 @@ namespace EssentialsX.Modules.Teleport
                 warmupCb.Remove(senderUid);
             }
         }
-
         private void DoTeleport(IServerPlayer sender, IServerPlayer receiver, bool applyCooldown)
         {
-            var ent = receiver.Entity;
-            var target = sender.Entity;
-            if (ent == null || target == null)
+            var src = receiver.Entity;
+            var dst = sender.Entity;
+            if (src == null || dst == null)
             {
                 Send(sender, cfg.Messages.TeleportFailed);
                 Send(receiver, cfg.Messages.TeleportFailed);
@@ -397,14 +390,14 @@ namespace EssentialsX.Modules.Teleport
 
             try
             {
-                var bp = target.ServerPos.AsBlockPos;
+                var bp = dst.ServerPos.AsBlockPos;
                 sapi.WorldManager.LoadChunkColumnPriority(bp.X / GlobalConstants.ChunkSize, bp.Z / GlobalConstants.ChunkSize);
 
-                double tx = target.ServerPos.X;
-                double ty = target.ServerPos.Y;
-                double tz = target.ServerPos.Z;
+                double tx = dst.ServerPos.X;
+                double ty = dst.ServerPos.Y;
+                double tz = dst.ServerPos.Z;
 
-                ent.TeleportToDouble(tx, ty, tz);
+                src.TeleportToDouble(tx, ty, tz);
 
                 if (applyCooldown && cfg.CooldownSeconds > 0)
                 {
@@ -423,31 +416,45 @@ namespace EssentialsX.Modules.Teleport
 
         private bool PlayerBypasses(IServerPlayer p)
         {
-            if (cfg.BypassPlayers != null && cfg.BypassPlayers.Contains(p.PlayerName)) return true;
+            var role = p.Role?.Code ?? "";
+
             if (cfg.BypassRoles != null)
             {
-                foreach (var role in cfg.BypassRoles)
-                    if (p.HasPrivilege(role)) return true;
+                foreach (var r in cfg.BypassRoles)
+                    if (role.Equals(r, StringComparison.OrdinalIgnoreCase))
+                        return true;
             }
+
+            if (cfg.BypassPlayers != null)
+            {
+                foreach (var name in cfg.BypassPlayers)
+                    if (p.PlayerName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                        return true;
+            }
+
             return false;
         }
 
         private IServerPlayer? PlayerByUid(string uid)
         {
-            return sapi.Server.Players.FirstOrDefault(sp => sp.PlayerUID == uid);
+            foreach (var plr in sapi.World.AllOnlinePlayers)
+                if (plr is IServerPlayer sp && sp.PlayerUID == uid) return sp;
+            return null;
         }
 
-        private IServerPlayer? FindPlayerByName(string namePart)
+        private IServerPlayer? FindPlayerByName(string name)
         {
-            foreach (var sp in sapi.Server.Players)
-                if (sp.PlayerName.Equals(namePart, StringComparison.OrdinalIgnoreCase))
-                    return sp;
+            IServerPlayer? exact = null;
+            IServerPlayer? starts = null;
+            name = name.Trim();
 
-            foreach (var sp in sapi.Server.Players)
-                if (sp.PlayerName.IndexOf(namePart, StringComparison.OrdinalIgnoreCase) >= 0)
-                    return sp;
-
-            return null;
+            foreach (var plr in sapi.World.AllOnlinePlayers)
+            {
+                if (plr is not IServerPlayer sp) continue;
+                if (sp.PlayerName.Equals(name, StringComparison.OrdinalIgnoreCase)) { exact = sp; break; }
+                if (starts == null && sp.PlayerName.StartsWith(name, StringComparison.OrdinalIgnoreCase)) starts = sp;
+            }
+            return exact ?? starts;
         }
 
         private void Send(IServerPlayer p, string body)

@@ -12,11 +12,9 @@ namespace EssentialsX.Modules.Teleport
         public int CooldownSeconds { get; set; } = 60;
         public int RequestExpireSeconds { get; set; } = 30;
         public bool CancelOnMove { get; set; } = true;
-        public bool CancelOnDamage { get; set; } = true;
         public List<string>? BypassRoles { get; set; } = ["admin", "sumod", "crmod"];
         public List<string>? BypassPlayers { get; set; } = ["Notch"];
         public TprMessages Messages { get; set; } = new TprMessages();
-
         private const string RelFolder = "ModConfig/EssentialsX/Teleportation";
         private const string FileName = "TprConfig.json";
 
