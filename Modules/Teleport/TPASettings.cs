@@ -12,16 +12,9 @@ namespace EssentialsX.Modules.Teleport
         public int WarmupSeconds { get; set; } = 5;
         public int CooldownSeconds { get; set; } = 60;
         public int RequestExpireSeconds { get; set; } = 30;
-
-        // --- Handlers 
         public bool CancelOnMove { get; set; } = true;
-        public bool CancelOnDamage { get; set; } = true;
-
-        // --- Perm
         public List<string>? BypassRoles { get; set; } = ["admin", "sumod", "crmod"];
         public List<string>? BypassPlayers { get; set; } = ["Notch"];
-
-        // --- Messages
         public TpaMessages Messages { get; set; } = new TpaMessages();
 
         private const string RelFolder = "ModConfig/EssentialsX/Teleportation";

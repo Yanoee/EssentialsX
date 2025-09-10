@@ -2,9 +2,7 @@
 {
     public class TpaMessages
     {
-        // Prefix
         public string TPAPrefix { get; set; } = "<strong><font color='#FFFFFF'>[</font><font color='#5384EE' weight='bold'>TPA</font><font color='#FFFFFF'>]</font></strong>";
-
         // Descriptions
         public string DescTpa { get; set; } = "<font color='#00FF80'>/tpa &lt;player&gt; — request to teleport to a player</font>";
         public string DescTpAccept { get; set; } = "<font color='#00FF80'>/tpaccept — accept a pending TPA request</font>";
@@ -23,19 +21,16 @@
         public string TeleportFailed { get; set; } = "<font color='#FF8080'>Teleport failed.</font>";
         public string AlreadyTeleporting { get; set; } = "<font color='#C91212'>You already have a TPA teleport in progress.</font>";
 
-
         // Sent/receive
         public string SentSender { get; set; } = "<font color='#4CE0BB'>You sent {playername} a teleportation request.</font>";
         public string SentReceiver { get; set; } = "<font color='#4CE0BB'>You have received a teleportation request from {playername}.</font>";
         public string ClickableReceiver { get; set; } = "<a href='command:///tpaccept'>[ACCEPT]</a>   <a href='command:///tpdeny'>[DENY]</a>";
 
-        // Warmup start cancels
+        // Warmup start + move-cancel
         public string BeginSender { get; set; } = "<font color='#4CE0E0'>You will be teleporting to {playername}. Do not move for {warmup}s!</font>";
         public string BeginReceiver { get; set; } = "<font color='#4CE0E0'>{playername} is teleporting to you in {warmup}s.</font>";
         public string MovedSender { get; set; } = "<font color='#C91212'>You moved; teleportation canceled.</font>";
         public string MovedReceiver { get; set; } = "<font color='#C91212'>{playername} moved; teleportation canceled.</font>";
-        public string DamageCancelSender { get; set; } = "<font color='#C91212'>You took damage; teleportation canceled.</font>";
-        public string DamageCancelReceiver { get; set; } = "<font color='#C91212'>{playername} took damage; teleportation canceled.</font>";
 
         // Accept / deny / cancel / success
         public string DeniedSender { get; set; } = "<font color='#C91212'>{playername} denied your TPA request.</font>";
