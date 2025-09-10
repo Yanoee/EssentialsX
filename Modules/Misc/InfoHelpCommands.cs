@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using EssentialsX.Modules.Home;
+using EssentialsX.Modules.Teleport;
+using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -13,7 +15,18 @@ namespace EssentialsX.Modules.Misc
         private const string ModuleName = "InfoHelp";
         private static readonly string[] PlannedModules =
         {
-            "Homes","InfoHelp","Rules","TPA","TPR","Spawn","Back","RTP","Kits","Moderation","JoinLeave","TabList"
+            "Homes",
+            "InfoHelp",
+            "Rules",
+            "TPA",
+            "TPR",
+            "Spawn",
+            "Back",
+            "RTP",
+            "Kits",
+            "Moderation",
+            "JoinLeave",
+            "TabList"
         };
         public InfoHelpCommands(ICoreServerAPI sapi)
         {
@@ -35,13 +48,13 @@ namespace EssentialsX.Modules.Misc
         {
             sapi.World.Logger.Event("[EssentialsX] Loaded module: {0}", ModuleName);
 
-            if (settings != null && settings.Enabled)
+            if (settings?.Enabled == true)
             {
                 sapi.ChatCommands
                    .Create("essentialsx")
                    .WithDescription(msgs.RootDesc)
                    .RequiresPrivilege("chat")
-                   .HandleWith(OnHelpCommand)   // Root → show help if no subcommand
+                   .HandleWith(OnHelpCommand)
                    .BeginSubCommand("info")
                    .WithDescription(msgs.InfoDesc)
                    .HandleWith(OnInfoCommand)
@@ -55,7 +68,6 @@ namespace EssentialsX.Modules.Misc
                    .RequiresPrivilege("admin")
                    .HandleWith(OnReloadCommand)
                    .EndSubCommand();
-
             }
             else
             {
@@ -116,19 +128,31 @@ namespace EssentialsX.Modules.Misc
 
             SendBlock(player, msgs.Reloading);
 
-            // Reload settings + messages from disk
-            settings = InfoHelpSettings.LoadOrCreate(sapi);
-            msgs = InfoHelpMessages.LoadOrCreate(sapi);
-
-            SendBlock(player, msgs.Reloaded);
-            sapi.World.Logger.Event("[EssentialsX] Configs reloaded by {0}", player.PlayerName);
+            int count = 0;
+            try
+            {
+                settings = InfoHelpSettings.LoadOrCreate(sapi); count++;
+                msgs = InfoHelpMessages.LoadOrCreate(sapi); count++;
+                HomeConfig.LoadOrCreate(sapi); count++;
+                RulesConfig.LoadOrCreate(sapi); count++;
+                TpaConfig.LoadOrCreate(sapi); count++;
+                TprConfig.LoadOrCreate(sapi); count++;
+                BackConfig.LoadOrCreate(sapi); count++;
+                SpawnConfig.LoadOrCreate(sapi); count++;
+            }
+            catch (Exception ex)
+            {
+                sapi.World.Logger.Error("[EssentialsX] Reload error: {0}", ex);
+                SendBlock(player, "<font color='#FF0000'>Reload failed. See server log.</font>");
+                return TextCommandResult.Success();
+            }
+            SendBlock(player, $"<font color='#00FF80'>Reloaded {count} JSON files.</font>");
+            sapi.World.Logger.Event("[EssentialsX] /essentialsx reload refreshed all module JSON files by {0}", player.PlayerName);
             return TextCommandResult.Success();
         }
-
-        // --- helpers ---
         private void SendBlock(IServerPlayer plr, string body)
         {
-            plr.SendMessage(GlobalConstants.GeneralChatGroup, $"{msgs.Header}\n{msgs.Prefix}\n{body}\n{msgs.Footer}", EnumChatType.Notification);
+            plr.SendMessage(GlobalConstants.GeneralChatGroup, $"{msgs.Prefix}: {body}", EnumChatType.Notification);
         }
         private static string EscapeVtml(string s)
             => s.Replace("<", "&lt;").Replace(">", "&gt;");
