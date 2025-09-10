@@ -11,11 +11,8 @@ namespace EssentialsX
         public override void StartServerSide(ICoreServerAPI sapi)
         {
             base.StartServerSide(sapi);
-
-            // --- Banner ---
             string version = Mod.Info.Version ?? "Error - ModInfo missing (?)";
             sapi.World.Logger.Event($@"
-
                 ***********************************************************
                 *    _____                   _   _       _     __   __    *
                 *   |  ___|                 | | (_)     | |    \ \ / /    *
@@ -25,116 +22,70 @@ namespace EssentialsX
                 *   \____/___/___/\___|_| |_|\__|_|\__,_|_|___/\/   \/    *
                 *                                                         *
                 *      EssentialsX by Yanoee - Version: {version}         *
-                ***********************************************************
-            ");
+                ***********************************************************");
+                                       /*-- Module Registerations --*/
 
-            // === Homes ===
-            try
-            {
-                var homeSettings = HomeSettings.LoadOrCreate(sapi);
-                var homeMessages = HomeMessages.LoadOrCreate(sapi);
 
-                if (homeSettings.Enabled)
-                {
-                    new HomeCommands(sapi, homeSettings, homeMessages).Register();
-                    EssentialsXRegistry.Register("Homes");
-                }
-                else
-                {
-                    sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: Homes");
-                }
-            }
-            catch (Exception ex)
-            {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load Homes module: {0}", ex);
-            }
-
-            // === Misc / InfoHelp ===
-            try
+            EssentialsXRegistry.TryRegister<InfoHelpCommands>(sapi, () =>
             {
                 var infoSettings = InfoHelpSettings.LoadOrCreate(sapi);
                 if (infoSettings.Enabled)
                 {
                     new InfoHelpCommands(sapi).Register();
-                    EssentialsXRegistry.Register("InfoHelp");
                 }
                 else
                 {
                     sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: InfoHelp");
                 }
-            }
-            catch (Exception ex)
+            }, "InfoHelp");
+            EssentialsXRegistry.TryRegister<HomeCommands>(sapi, () =>
             {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load InfoHelp module: {0}", ex);
-            }
+                new HomeCommands(sapi).Register();
+            }, "Homes");
 
-            // === Rules ===
-            try
+            EssentialsXRegistry.TryRegister<RulesCommands>(sapi, () =>
             {
-                var rulesSettings = Rules.RulesSettings.LoadOrCreate(sapi);
-                if (rulesSettings.Enabled)
-                {
-                    new Rules(sapi).Register();
-                    EssentialsXRegistry.Register("Rules");
-                }
-                else
-                {
-                    sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: Rules");
-                }
-            }
-            catch (Exception ex)
-            {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load Rules module: {0}", ex);
-            }
-
-            // === Teleport (TPA) ===
-            try
+                new RulesCommands(sapi).Register();
+            }, "Rules");
+            EssentialsXRegistry.TryRegister<TPACommands>(sapi, () =>
             {
                 new TPACommands(sapi).Register();
-                EssentialsXRegistry.Register("TPA");
-            }
-            catch (Exception ex)
-            {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load TPA module: {0}", ex);
-            }
-
-            // === Teleport (TPR) ===
-            try
+            }, "TPA");
+            EssentialsXRegistry.TryRegister<TPRCommands>(sapi, () =>
             {
                 new TPRCommands(sapi).Register();
-                EssentialsXRegistry.Register("TPR");
-            }
-            catch (Exception ex)
-            {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load TPR module: {0}", ex);
-            }
-            // === Teleport (Back) ===
-            try
+            }, "TPR");
+            EssentialsXRegistry.TryRegister<BackCommands>(sapi, () =>
             {
                 new BackCommands(sapi).Register();
-                EssentialsXRegistry.Register("Back");
-            }
-            catch (Exception ex)
-            {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load Back module: {0}", ex);
-            }
-            // === Teleport (Spawn) ===
-            try
+            }, "Back");
+            EssentialsXRegistry.TryRegister<SpawnCommands>(sapi, () =>
             {
                 new SpawnCommands(sapi).Register();
-                EssentialsXRegistry.Register("Spawn");
+            }, "Spawn");
+        }
+    }
+    public static class EssentialsXRegistry
+    {
+        private static readonly HashSet<string> loaded = [];
+        public static void TryRegister<TCommands>(ICoreServerAPI sapi, Action register, string? moduleNameOverride = null)
+        {
+            string inferred = typeof(TCommands).Name;
+            if (inferred.EndsWith("Commands"))
+                inferred = inferred.Substring(0, inferred.Length - "Commands".Length);
+
+            string moduleName = string.IsNullOrWhiteSpace(moduleNameOverride) ? inferred : moduleNameOverride;
+
+            try
+            {
+                register();
+                Register(moduleName);
             }
             catch (Exception ex)
             {
-                sapi.World.Logger.Error("[EssentialsX] Failed to load Spawn module: {0}", ex);
+                sapi.World.Logger.Error("[EssentialsX] Failed to load {0} module: {1}", moduleName, ex);
             }
         }
-    }
-
-    // essentialsx info 
-    public static class EssentialsXRegistry
-    {
-        private static readonly HashSet<string> loaded = new();
 
         public static void Register(string moduleName)
         {
@@ -143,7 +94,6 @@ namespace EssentialsX
                 loaded.Add(moduleName);
             }
         }
-
         public static IReadOnlyCollection<string> GetLoaded() => loaded;
     }
 }
