@@ -23,26 +23,15 @@ namespace EssentialsX
                 *                                                         *
                 *      EssentialsX by Yanoee - Version: {version}         *
                 ***********************************************************");
-                                       /*-- Module Registerations --*/
-
 
             EssentialsXRegistry.TryRegister<InfoHelpCommands>(sapi, () =>
             {
-                var infoSettings = InfoHelpSettings.LoadOrCreate(sapi);
-                if (infoSettings.Enabled)
-                {
-                    new InfoHelpCommands(sapi).Register();
-                }
-                else
-                {
-                    sapi.World.Logger.Event("[EssentialsX] Module disabled by settings: InfoHelp");
-                }
+                new InfoHelpCommands(sapi).Register();
             }, "InfoHelp");
             EssentialsXRegistry.TryRegister<HomeCommands>(sapi, () =>
             {
                 new HomeCommands(sapi).Register();
             }, "Homes");
-
             EssentialsXRegistry.TryRegister<RulesCommands>(sapi, () =>
             {
                 new RulesCommands(sapi).Register();
@@ -63,6 +52,10 @@ namespace EssentialsX
             {
                 new SpawnCommands(sapi).Register();
             }, "Spawn");
+            EssentialsXRegistry.TryRegister<RandomTeleport>(sapi, () =>
+            {
+                new RandomTeleport(sapi).Register();
+            }, "RTP");
         }
     }
     public static class EssentialsXRegistry
