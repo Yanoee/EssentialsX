@@ -75,8 +75,6 @@ namespace EssentialsX.Modules.Teleport
             };
         }
 
-        //Command Handlers
-
         private TextCommandResult OnSpawn(TextCommandCallingArgs args)
         {
             var caller = args.Caller.Player as IServerPlayer;
