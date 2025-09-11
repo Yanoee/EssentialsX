@@ -104,7 +104,7 @@ namespace EssentialsX.Modules.Misc
 
         public RulesMessages Messages { get; set; } = new RulesMessages();
 
-        private const string RelFolder = "ModConfig/EssentialsX/Rules";
+        private const string RelFolder = "ModConfig/EssentialsX/Misc";
         private const string FileName = "RulesConfig.json";
 
         public static RulesConfig LoadOrCreate(ICoreServerAPI sapi)
